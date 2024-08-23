@@ -1,6 +1,7 @@
 import express from "express"
 import mongoose from "mongoose"
 import dotenv from "dotenv"
+import reservasRouter from "./routes/reservas.routes"
 
 dotenv.config()
 
@@ -23,6 +24,8 @@ app.get("/", (_req, res) => {
     console.log("Alguien entro al origen")
     res.send("hola")
 })
+
+app.use("/reservas", reservasRouter)
 
 app.listen(PORT, ()=>{
     console.log(`Server runing on port ${PORT}`)
