@@ -1,7 +1,8 @@
 import express from "express"
 import mongoose from "mongoose"
 import dotenv from "dotenv"
-import reservasRouter from "./routes/reservas.routes"
+import appointmentsRouter from "./routes/appointments.routes"
+import companiesRouter from "./routes/companies.routes"
 
 dotenv.config()
 
@@ -25,7 +26,8 @@ app.get("/", (_req, res) => {
     res.send("hola")
 })
 
-app.use("/reservas", reservasRouter)
+app.use("/appointments", appointmentsRouter)
+app.use("/companies", companiesRouter)
 
 app.listen(PORT, ()=>{
     console.log(`Server runing on port ${PORT}`)
