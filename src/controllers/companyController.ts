@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import CompanyModel from "../../models/Company";
-import { companyToAdd } from "./utilsCompany";
+import CompanyModel from "../models/Company";
+import { companyToAdd } from "../utils";
 
 export const createCompany = async (req: Request, res: Response): Promise<void> => {
     try {
-        const company = companyToAdd(req.body)
+        const company = await companyToAdd(req.body)
         const newCompany = new CompanyModel(company)
 
         await newCompany.save()
