@@ -2,6 +2,17 @@ import { Request, Response } from "express";
 import { userToAdd, verifyToLogin } from "../utils";
 import UserModel from "../models/User";
 
+export const getUsers = async (_req: Request, res: Response): Promise<void> => {
+    try{
+        const users = await UserModel.find()
+        res.send({data: users}).status(200)
+    } catch (error: any) {
+        res.send({error: error.message}).status(500)
+    }
+}
+
+// Registrar
+
 export const createUser = async (req: Request, res: Response): Promise<void> => {
     try{
         const user = await userToAdd(req.body)
@@ -15,15 +26,6 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
     } catch (error: any) {
         res.send({error: error.message}).status(400)
-    }
-}
-
-export const getUsers = async (_req: Request, res: Response): Promise<void> => {
-    try{
-        const users = await UserModel.find()
-        res.send({data: users}).status(200)
-    } catch (error: any) {
-        res.send({error: error.message}).status(500)
     }
 }
 

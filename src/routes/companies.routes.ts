@@ -1,9 +1,10 @@
 import { Router } from "express";
-import { createCompany, getCompanies } from "../controllers/companyController";
+import { createCompany, getCompanies, loginCompany } from "../controllers/companyController";
 
 const companiesRouter = Router()
 
-companiesRouter.get("/allcompanies", getCompanies)
-companiesRouter.post("/", createCompany)
+companiesRouter.get("/", getCompanies)
+companiesRouter.post("/login", loginCompany)
+companiesRouter.post("/register", createCompany)
 
 export default companiesRouter

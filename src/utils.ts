@@ -1,3 +1,4 @@
+import CompanyModel from "./models/Company";
 import UserModel from "./models/User";
 import {CompanyInputs, Email, UserInputs } from "./types"
 import bcrypt from "bcrypt";
@@ -67,6 +68,8 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
     return newUser
 }
 
+// Chequear datos para el logueo de empresas o usuarios
+
 export const verifyToLogin = async (object: any): Promise<UserInputs> => {
     const {name, password} = object
 
@@ -85,5 +88,26 @@ export const verifyToLogin = async (object: any): Promise<UserInputs> => {
         username: userFound.username,
         email: userFound.email as Email,
         password: userFound.password
+    }
+}
+
+export const verifyToLoginCompany = async (object: any): Promise<UserInputs> => {
+    const {name, password} = object
+
+    const newName = parseInput(name, "Nombre")
+    const newPassword = await parsePassword(password)
+
+    const companyFound = await CompanyModel.findOne({name: newName})
+
+    if (!companyFound) throw new Error("Usuario no existente.")
+
+    const isValid = await bcrypt.compare(newPassword, companyFound.password)
+
+    if (!isValid) throw new Error("Contraseña incorrecta.")
+
+    return {
+        username: companyFound.name,
+        email: companyFound.email as Email,
+        password: companyFound.password
     }
 }
