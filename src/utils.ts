@@ -1,6 +1,6 @@
 import CompanyModel from "./models/Company";
 import UserModel from "./models/User";
-import {CompanyInputs, Email, UserInputs } from "./types"
+import { BasicInfoWithID, CompanyInputs, Email, UserInputs } from "./types";
 import bcrypt from "bcrypt";
 
 const isString = (param: any): boolean => {
@@ -13,6 +13,11 @@ const isEmail = (param: any): boolean => {
     return emailRegex.test(param);
 }
 
+const hashPassword = async (password: string): Promise<string> => {
+    const hashedPassword = await bcrypt.hash(password, 10)
+    return hashedPassword
+}
+
 const parseInput = (input: any, nameInput: string): string => {
     if (!isString(input)) throw new Error(`${nameInput} incorrecto o incompleto.`)
     return input
@@ -22,11 +27,6 @@ const parseEmail = (emailFromRequest: any): Email => {
     if (!isEmail(emailFromRequest)) throw new Error("Email incorrecto o incompleto.")
 
     return emailFromRequest
-}
-
-const hashPassword = async (password: string): Promise<string> => {
-    const hashedPassword = await bcrypt.hash(password, 10)
-    return hashedPassword
 }
 
 const parsePassword = async (passwordFromRequest: any): Promise<string> => {
@@ -47,6 +47,7 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
         name: parseInput(object.name, "Nombre"),
         email: parseEmail(object.email),
         password: hashedPassword,
+        phone: parseInput(object.phone, "Teléfono"),
         location: parseInput(object.location, "Ubicación")
     }
     
@@ -59,10 +60,11 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
     const hashedPasswoed = await hashPassword(newPassword)
 
     const newUser: UserInputs = {
-        username: parseInput(object.username, "Nombre"),
+        name: parseInput(object.name, "Nombre"),
+        lastName: parseInput(object.lastName, "Apellido"),
         email: parseEmail(object.email),
         password: hashedPasswoed,
-        phone: parseInput(object.phone || null, "Teléfono")
+        phone: parseInput(object.phone, "Teléfono")
     }
 
     return newUser
@@ -70,13 +72,14 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
 
 // Chequear datos para el logueo de empresas o usuarios
 
-export const verifyToLogin = async (object: any): Promise<UserInputs> => {
-    const {name, password} = object
+export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithID> => {
+    const {email, password} = object
 
-    const newName = parseInput(name, "Nombre")
+
+    const newEmail = parseEmail(email)
     const newPassword = await parsePassword(password)
 
-    const userFound = await UserModel.findOne({username: newName})
+    const userFound = await UserModel.findOne({email: newEmail})
 
     if (!userFound) throw new Error("Usuario no existente.")
 
@@ -85,29 +88,29 @@ export const verifyToLogin = async (object: any): Promise<UserInputs> => {
     if (!isValid) throw new Error("Contraseña incorrecta.")
 
     return {
-        username: userFound.username,
-        email: userFound.email as Email,
-        password: userFound.password
+        id: userFound._id,
+        name: userFound.name,
+        email: userFound.email as Email
     }
 }
 
-export const verifyToLoginCompany = async (object: any): Promise<UserInputs> => {
-    const {name, password} = object
+export const verifyToLoginCompany = async (object: any): Promise<BasicInfoWithID> => {
+    const {email, password} = object
 
-    const newName = parseInput(name, "Nombre")
+    const newEmail = parseEmail(email)
     const newPassword = await parsePassword(password)
 
-    const companyFound = await CompanyModel.findOne({name: newName})
+    const companyFound = await CompanyModel.findOne({email: newEmail})
 
-    if (!companyFound) throw new Error("Usuario no existente.")
+    if (!companyFound) throw new Error("Empresa no existente.")
 
     const isValid = await bcrypt.compare(newPassword, companyFound.password)
 
     if (!isValid) throw new Error("Contraseña incorrecta.")
 
     return {
-        username: companyFound.name,
-        email: companyFound.email as Email,
-        password: companyFound.password
+        id: companyFound._id,
+        name: companyFound.name,
+        email: companyFound.email as Email
     }
 }

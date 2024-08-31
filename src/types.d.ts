@@ -1,21 +1,25 @@
+import { Types } from "mongoose"
+
 export type Email = `${string}@${string}`
 
-interface InputsCommon{
+export interface BasicInfo {
+    name: string
     email: Email
+}
+
+export interface BasicInfoWithID extends BasicInfo {
+    id: Types.ObjectId
+}
+
+interface InputsCommon extends BasicInfo{
     password: string
-    phone?: string
+    phone: string
 }
 
 export interface CompanyInputs extends InputsCommon {
-    name: string,
     location: string
 }
 
 export interface UserInputs extends InputsCommon {
-    username: string
-}
-
-export interface Login {
-    name: string
-    password: string
+    lastName: string
 }

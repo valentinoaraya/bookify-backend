@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
-import { userToAdd, verifyToLogin } from "../utils";
+import { userToAdd, verifyToLoginUser } from "../utils";
 import UserModel from "../models/User";
+import { createToken } from "../middlewares/verifyTokens";
 
 export const getUsers = async (_req: Request, res: Response): Promise<void> => {
     try{
@@ -17,9 +18,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     try{
         const user = await userToAdd(req.body)
         const newUser = new UserModel(user)
-        const userFound = await UserModel.findOne({username: user.username})
+        const userFound = await UserModel.findOne({username: user.email})
 
-        if (userFound) throw new Error("Usuario ya existente")
+        if (userFound) throw new Error("Ya existe una cuenta con este email.")
 
         await newUser.save()
         res.send({data: newUser}).status(200)
@@ -33,12 +34,15 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
     try{
-        const user = await verifyToLogin(req.body)
-        res.send({data: {
-            username: user.username,
-            email: user.email
-        }})
-        .status(200)
+        const user = await verifyToLoginUser(req.body)
+        const token = createToken(user)
+        res
+          .cookie("acces_token", token, {
+            httpOnly: true, // Solo leer en el servidor
+            maxAge: 1000 * 60 * 60 // 1 hora de vida
+          })
+          .send({data: {userName: user.name, email: user.email}})
+          .status(200)
     } catch (error: any){
         res.send({error: error.message}).status(400)
     }
