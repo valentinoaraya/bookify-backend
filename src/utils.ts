@@ -2,13 +2,17 @@ import CompanyModel from "./models/Company";
 import UserModel from "./models/User";
 import { BasicInfoWithID, CompanyInputs, Email, UserInputs } from "./types";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken"
+import dotenv from "dotenv"
+
+dotenv.config()
 
 const isString = (param: any): boolean => {
     return (typeof param === "string" || param instanceof String)
 }
 
 const isEmail = (param: any): boolean => {
-    if (typeof param != "string") return false        
+    if (typeof param != "string") return false
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(param);
 }
@@ -31,7 +35,7 @@ const parseEmail = (emailFromRequest: any): Email => {
 
 const parsePassword = async (passwordFromRequest: any): Promise<string> => {
     if (!isString(passwordFromRequest)) throw new Error("La contraseña debe ser un string.")
-    if ((passwordFromRequest as string).length < 6 ) throw new Error("La contraseña debe contener al menos 6 caracteres")
+    if ((passwordFromRequest as string).length < 6) throw new Error("La contraseña debe contener al menos 6 caracteres")
 
     return passwordFromRequest
 }
@@ -50,7 +54,7 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
         phone: parseInput(object.phone, "Teléfono"),
         location: parseInput(object.location, "Ubicación")
     }
-    
+
     return newCompany
 }
 
@@ -73,13 +77,13 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
 // Chequear datos para el logueo de empresas o usuarios
 
 export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithID> => {
-    const {email, password} = object
+    const { email, password } = object
 
 
     const newEmail = parseEmail(email)
     const newPassword = await parsePassword(password)
 
-    const userFound = await UserModel.findOne({email: newEmail})
+    const userFound = await UserModel.findOne({ email: newEmail })
 
     if (!userFound) throw new Error("Usuario no existente.")
 
@@ -95,12 +99,12 @@ export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithID> =
 }
 
 export const verifyToLoginCompany = async (object: any): Promise<BasicInfoWithID> => {
-    const {email, password} = object
+    const { email, password } = object
 
     const newEmail = parseEmail(email)
     const newPassword = await parsePassword(password)
 
-    const companyFound = await CompanyModel.findOne({email: newEmail})
+    const companyFound = await CompanyModel.findOne({ email: newEmail })
 
     if (!companyFound) throw new Error("Empresa no existente.")
 
@@ -113,4 +117,9 @@ export const verifyToLoginCompany = async (object: any): Promise<BasicInfoWithID
         name: companyFound.name,
         email: companyFound.email as Email
     }
+}
+
+export const createToken = (data: BasicInfoWithID): string => {
+    const token = jwt.sign(data, process.env.SECRET_JWT_KEY as string, { expiresIn: "1h" })
+    return token
 }
