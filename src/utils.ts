@@ -1,6 +1,6 @@
 import CompanyModel from "./models/Company";
 import UserModel from "./models/User";
-import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, Email, Service, UserInputs } from "./types";
+import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, Email, Service, UserInputAppointment, UserInputs } from "./types";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
@@ -21,6 +21,10 @@ const isEmail = (param: any): boolean => {
     return emailRegex.test(param);
 }
 
+const isDate = (param: any): boolean => {
+    return Boolean(Date.parse(param))
+}
+
 const hashPassword = async (password: string): Promise<string> => {
     const hashedPassword = await bcrypt.hash(password, 10)
     return hashedPassword
@@ -38,7 +42,6 @@ const parseNumber = (input: any, nameInput: string): number => {
 
 const parseEmail = (emailFromRequest: any): Email => {
     if (!isEmail(emailFromRequest)) throw new Error("Email incorrecto o incompleto.")
-
     return emailFromRequest
 }
 
@@ -47,6 +50,11 @@ const parsePassword = async (passwordFromRequest: any): Promise<string> => {
     if ((passwordFromRequest as string).length < 6) throw new Error("La contraseña debe contener al menos 6 caracteres")
 
     return passwordFromRequest
+}
+
+const parseDate = (dateFromRequest: any): Date => {
+    if (!isDate(dateFromRequest) || !isString(dateFromRequest)) throw new Error("Fecha incorrecta.")
+    return dateFromRequest
 }
 
 // Registrar
@@ -158,4 +166,16 @@ export const serviceToUpdate = (object: any) => {
     if (duration != undefined) updateFields.duration = duration
 
     return updateFields
+}
+
+// Turnos
+
+export const appointmentToAdd = (object: any): UserInputAppointment => {
+    const newAppointment: UserInputAppointment = {
+        date: parseDate(object.date),
+        serviceId: parseInput(object.serviceId, "ID de Servicio"),
+        companyId: parseInput(object.companyId, "ID de Empresa")
+    }
+
+    return newAppointment
 }

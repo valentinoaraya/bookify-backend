@@ -42,3 +42,9 @@ export interface Service {
     price: number
     duration: number
 }
+
+export interface UserInputAppointment {
+    date: Date
+    serviceId: string
+    companyId: string
+}
