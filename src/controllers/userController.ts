@@ -3,7 +3,10 @@ import { userToAdd, verifyToLoginUser } from "../utils";
 import UserModel from "../models/User";
 import { createToken } from "../utils";
 
-export const getUsers = async (_req: Request, res: Response): Promise<void> => {
+export const getUsers = async (req: Request, res: Response): Promise<void | Response> => {
+
+    if (req.user?.rol != "admin") return res.send({ error: "Usuario no autorizado" }).status(401)
+
     try {
         const users = await UserModel.find()
         res.send({ data: users }).status(200)
@@ -39,7 +42,8 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         res
             .cookie("acces_token", token, {
                 httpOnly: true, // Solo leer en el servidor
-                maxAge: 1000 * 60 * 60 // 1 hora de vida
+                maxAge: 1000 * 60 * 60, // 1 hora de vida
+                sameSite: "lax"
             })
             .send({ data: { userName: user.name, email: user.email } })
             .status(200)

@@ -1,6 +1,6 @@
 import CompanyModel from "./models/Company";
 import UserModel from "./models/User";
-import { BasicInfoWithID, CompanyInputs, Email, UserInputs } from "./types";
+import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, Email, Service, UserInputs } from "./types";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
@@ -9,6 +9,10 @@ dotenv.config()
 
 const isString = (param: any): boolean => {
     return (typeof param === "string" || param instanceof String)
+}
+
+const isNumber = (param: any): boolean => {
+    return (typeof param === "number")
 }
 
 const isEmail = (param: any): boolean => {
@@ -24,6 +28,11 @@ const hashPassword = async (password: string): Promise<string> => {
 
 const parseInput = (input: any, nameInput: string): string => {
     if (!isString(input)) throw new Error(`${nameInput} incorrecto o incompleto.`)
+    return input
+}
+
+const parseNumber = (input: any, nameInput: string): number => {
+    if (!isNumber(input)) throw new Error(`${nameInput} incorrecto o incompleto.`)
     return input
 }
 
@@ -76,7 +85,7 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
 
 // Chequear datos para el logueo de empresas o usuarios
 
-export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithID> => {
+export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithIDRole> => {
     const { email, password } = object
 
 
@@ -94,7 +103,8 @@ export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithID> =
     return {
         id: userFound._id,
         name: userFound.name,
-        email: userFound.email as Email
+        email: userFound.email as Email,
+        rol: userFound.role
     }
 }
 
@@ -122,4 +132,30 @@ export const verifyToLoginCompany = async (object: any): Promise<BasicInfoWithID
 export const createToken = (data: BasicInfoWithID): string => {
     const token = jwt.sign(data, process.env.SECRET_JWT_KEY as string, { expiresIn: "1h" })
     return token
+}
+
+// Servicios
+
+export const serviceToAdd = (object: any): Service => {
+
+    const service: Service = {
+        title: parseInput(object.title, "Titulo"),
+        description: parseInput(object.description, "Descripción"),
+        price: parseNumber(object.price, "Precio"),
+        duration: parseNumber(object.duration, "Duración")
+    }
+
+    return service
+}
+
+export const serviceToUpdate = (object: any) => {
+
+    const { title, description, price, duration } = object
+    const updateFields: any = {}
+    if (title != undefined) updateFields.title = title
+    if (description != undefined) updateFields.description = description
+    if (price != undefined) updateFields.price = price
+    if (duration != undefined) updateFields.duration = duration
+
+    return updateFields
 }

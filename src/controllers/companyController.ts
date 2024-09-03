@@ -39,7 +39,8 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
         res
             .cookie("acces_token", token, {
                 httpOnly: true, // Solo leer en el servidor
-                maxAge: 1000 * 60 * 60 // 1 hora de vida
+                maxAge: 1000 * 60 * 60, // 1 hora de vida
+                sameSite: "lax"
             })
             .send({ data: { companyName: company.name, email: company.email } })
             .status(200)

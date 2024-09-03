@@ -12,6 +12,10 @@ export interface BasicInfoWithID extends BasicInfo {
     id: Types.ObjectId
 }
 
+export interface BasicInfoWithIDRole extends BasicInfoWithID {
+    rol: "user" | "admin"
+}
+
 interface InputsCommon extends BasicInfo {
     password: string
     phone: string
@@ -27,6 +31,14 @@ export interface UserInputs extends InputsCommon {
 
 declare module "express-serve-static-core" {
     interface Request {
-        user?: BasicInfoWithID
+        user?: BasicInfoWithIDRole
+        company?: BasicInfoWithID
     }
+}
+
+export interface Service {
+    title: string
+    description: string
+    price: number
+    duration: number
 }

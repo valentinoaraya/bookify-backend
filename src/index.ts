@@ -6,6 +6,7 @@ import appointmentsRouter from "./routes/appointments.routes"
 import companiesRouter from "./routes/companies.routes"
 import userRouter from "./routes/user.routes"
 import cors from "cors"
+import servicesRouter from "./routes/services.routes"
 
 dotenv.config()
 
@@ -38,6 +39,7 @@ app.get("/", (_req, res) => {
 app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
 app.use("/users", userRouter)
+app.use("/services", servicesRouter)
 
 app.listen(PORT, () => {
     console.log(`Server runing on port ${PORT}`)
