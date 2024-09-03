@@ -4,8 +4,8 @@ import { authenticateTokenUser } from "../middlewares/verifyTokens";
 
 const userRouter = Router()
 
-userRouter.post("/register", createUser)
-userRouter.post("/login", loginUser)
 userRouter.get("/", authenticateTokenUser, getUsers)
+userRouter.post("/login", loginUser)
+userRouter.post("/register", createUser)
 
 export default userRouter
