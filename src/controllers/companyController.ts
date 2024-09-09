@@ -23,7 +23,7 @@ export const createCompany = async (req: Request, res: Response): Promise<void> 
         if (companyFound) throw new Error("Ya existe una empresa con este email.")
 
         await newCompany.save()
-        res.send({ data: newCompany }).status(201)
+        res.send({ data: "Empresa registrada con éxito." }).status(201)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(400)

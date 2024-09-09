@@ -15,6 +15,36 @@ export const getUsers = async (req: Request, res: Response): Promise<void | Resp
     }
 }
 
+export const getUser = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const user = req.user
+
+        const newUser = await UserModel.findById(user?.id)
+            .populate({
+                path: "appointments",
+                populate: [
+                    { path: "serviceId", model: "Service" },
+                    { path: "companyId", model: "Company" },
+                ]
+            })
+
+        if (!newUser) return res.send({ error: "No se encontró usuario" }).status(400)
+
+        res.send({
+            data: {
+                name: newUser.name,
+                lastName: newUser.lastName,
+                email: newUser.email,
+                phone: newUser.phone,
+                appointments: newUser.appointments
+            }
+        }).status(200)
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+}
+
 // Registrar
 
 export const createUser = async (req: Request, res: Response): Promise<void> => {
@@ -26,7 +56,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         if (userFound) throw new Error("Ya existe una cuenta con este email.")
 
         await newUser.save()
-        res.send({ data: newUser }).status(200)
+        res.send({ data: "Usuario registrado con éxito." }).status(200)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(400)

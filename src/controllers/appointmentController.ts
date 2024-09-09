@@ -4,7 +4,6 @@ import AppointmentModel from "../models/Appointment";
 import UserModel from "../models/User";
 
 export const createAppointment = async (req: Request, res: Response): Promise<void | Response> => {
-
     try {
         const idUser = req.user?.id
         const appointment = appointmentToAdd(req.body)
@@ -20,5 +19,5 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
     }
-
 }
+
