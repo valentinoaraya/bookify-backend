@@ -1,7 +1,8 @@
 import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
-import { companyToAdd, verifyToLoginCompany } from "../utils";
+import { companyToAdd, companyToSend, verifyToLoginCompany } from "../utils";
 import { createToken } from "../utils";
+import ServiceModel from "../models/Service";
 
 export const getCompanies = async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -46,5 +47,38 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
             .status(200)
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
+    }
+}
+
+// Obtener empresas y servicios
+
+export const getCompaniesServices = async (req: Request, res: Response): Promise<void> => {
+    const searchTerm = req.query.q as string || ''
+    try {
+
+        const companies = await CompanyModel.find({
+            name: { $regex: searchTerm, $options: 'i' }
+        })
+
+        const services = await ServiceModel.find({
+            title: { $regex: searchTerm, $options: 'i' }
+        })
+
+        res.send(searchTerm ? { data: { companies, services } } : { error: "No encontrado" })
+
+    } catch (error: any) {
+        res.send({ error: error }).status(500)
+    }
+}
+
+export const getCompanyById = async (req: Request, res: Response): Promise<void> => {
+    const { id } = req.params
+    try {
+        const company = await companyToSend(id)
+
+        res.send({ data: company }).status(200)
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
     }
 }

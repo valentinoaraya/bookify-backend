@@ -1,6 +1,6 @@
 import CompanyModel from "./models/Company";
 import UserModel from "./models/User";
-import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, Email, Service, UserInputAppointment, UserInputs } from "./types";
+import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, CompanyWithoutPassword, Email, Service, UserInputAppointment, UserInputs } from "./types";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import dotenv from "dotenv"
@@ -178,4 +178,22 @@ export const appointmentToAdd = (object: any): UserInputAppointment => {
     }
 
     return newAppointment
+}
+
+// Empresas
+
+export const companyToSend = async (id: string): Promise<CompanyWithoutPassword> => {
+    const company = await CompanyModel.findById(id)
+    if (!company) throw new Error("Empresa no existente.")
+
+    const newCompany: CompanyWithoutPassword = {
+        _id: company._id,
+        name: company.name,
+        services: company.services,
+        location: company.location,
+        phone: company.phone,
+        email: company.email as Email
+    }
+
+    return newCompany
 }

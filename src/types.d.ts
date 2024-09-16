@@ -48,3 +48,10 @@ export interface UserInputAppointment {
     serviceId: string
     companyId: string
 }
+
+export interface Company extends CompanyInputs {
+    _id: Types.ObjectId
+    services: Types.ObjectId[]
+}
+
+export type CompanyWithoutPassword = Omit<Company, "password">
