@@ -183,8 +183,9 @@ export const appointmentToAdd = (object: any): UserInputAppointment => {
 // Empresas
 
 export const companyToSend = async (id: string): Promise<CompanyWithoutPassword> => {
-    const company = await CompanyModel.findById(id)
+    const company = await CompanyModel.findById(id).populate("services", "_id description duration price title companyId")
     if (!company) throw new Error("Empresa no existente.")
+
 
     const newCompany: CompanyWithoutPassword = {
         _id: company._id,

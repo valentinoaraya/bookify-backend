@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { createCompany, getCompanies, getCompaniesServices, getCompanyById, loginCompany } from "../controllers/companyController";
+import { createCompany, getCompanies, getCompaniesServices, getCompany, getCompanyById, loginCompany } from "../controllers/companyController";
+import { authenticateTokenCompany } from "../middlewares/verifyTokens";
 
 const companiesRouter = Router()
 
@@ -7,6 +8,7 @@ companiesRouter.get("/", getCompanies)
 companiesRouter.post("/login", loginCompany)
 companiesRouter.post("/register", createCompany)
 companiesRouter.get("/search", getCompaniesServices)
-companiesRouter.get("/:id", getCompanyById)
+companiesRouter.get("/company/:id", getCompanyById)
+companiesRouter.get("/get-company", authenticateTokenCompany, getCompany)
 
 export default companiesRouter

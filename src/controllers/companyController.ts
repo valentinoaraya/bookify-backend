@@ -82,3 +82,28 @@ export const getCompanyById = async (req: Request, res: Response): Promise<void>
         res.send({ error: error.message }).status(500)
     }
 }
+
+export const getCompany = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+
+        const company = req.company
+
+        const newCompany = await CompanyModel.findById(company?.id).populate("services")
+
+        if (!newCompany) return res.send({ error: "No se encontró empresa." }).status(400)
+
+        res.send({
+            data: {
+                name: newCompany.name,
+                email: newCompany.email,
+                location: newCompany.location,
+                services: newCompany.services,
+            }
+        })
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+
+
+}
