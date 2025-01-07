@@ -1,9 +1,7 @@
 import jwt from "jsonwebtoken"
 import { Request, Response, NextFunction } from "express"
 import { BasicInfoWithID, BasicInfoWithIDRole } from "../types"
-import dotenv from "dotenv"
-
-dotenv.config()
+import { JWT_KEY } from "../config"
 
 export const authenticateTokenUser = (req: Request, res: Response, next: NextFunction): void | Response => {
     const token = req.cookies.acces_token
@@ -11,7 +9,7 @@ export const authenticateTokenUser = (req: Request, res: Response, next: NextFun
     if (!token) return res.send({ data: "Usuario no autorizado" }).status(401)
 
     try {
-        const decoded = jwt.verify(token, process.env.SECRET_JWT_KEY as string)
+        const decoded = jwt.verify(token, JWT_KEY as string)
         req.user = decoded as BasicInfoWithIDRole
         next()
     } catch (error: any) {
@@ -26,7 +24,7 @@ export const authenticateTokenCompany = (req: Request, res: Response, next: Next
     if (!token) return res.send({ data: "Usuario no autorizado" }).status(401)
 
     try {
-        const decoded = jwt.verify(token, process.env.SECRET_JWT_KEY as string)
+        const decoded = jwt.verify(token, JWT_KEY as string)
         req.company = decoded as BasicInfoWithID
         next()
     } catch (error: any) {

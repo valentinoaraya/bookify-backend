@@ -1,14 +1,12 @@
 import express from "express"
 import mongoose from "mongoose"
-import dotenv from "dotenv"
 import cookieParser from "cookie-parser"
 import appointmentsRouter from "./routes/appointments.routes"
 import companiesRouter from "./routes/companies.routes"
 import userRouter from "./routes/user.routes"
 import cors from "cors"
 import servicesRouter from "./routes/services.routes"
-
-dotenv.config()
+import { PORT, MONGOOSE_URL } from "./config"
 
 const app = express()
 
@@ -19,11 +17,7 @@ app.use(cors({
 app.use(express.json())
 app.use(cookieParser())
 
-const PORT = 3000
-
-const mongoURL = process.env.MONGODB_URL_CONNECTION as string
-
-mongoose.connect(mongoURL)
+mongoose.connect(MONGOOSE_URL as string)
     .then(() => {
         console.log("Connected to MongoDB")
     })

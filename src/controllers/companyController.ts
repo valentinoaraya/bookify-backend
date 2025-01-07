@@ -24,7 +24,15 @@ export const createCompany = async (req: Request, res: Response): Promise<void> 
         if (companyFound) throw new Error("Ya existe una empresa con este email.")
 
         await newCompany.save()
-        res.send({ data: "Empresa registrada con éxito." }).status(201)
+        res
+            .send({
+                data: {
+                    id: newCompany.id,
+                    name: newCompany.name,
+                    email: newCompany.email
+                }
+            })
+            .status(200)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
@@ -43,7 +51,7 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
                 maxAge: 1000 * 60 * 60, // 1 hora de vida
                 sameSite: "lax"
             })
-            .send({ data: { companyName: company.name, email: company.email } })
+            .send({ data: company })
             .status(200)
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
@@ -96,7 +104,9 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
             data: {
                 name: newCompany.name,
                 email: newCompany.email,
-                location: newCompany.location,
+                city: newCompany.city,
+                street: newCompany.street,
+                number: newCompany.number,
                 services: newCompany.services,
             }
         })

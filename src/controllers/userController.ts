@@ -56,7 +56,16 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         if (userFound) throw new Error("Ya existe una cuenta con este email.")
 
         await newUser.save()
-        res.send({ data: "Usuario registrado con éxito." }).status(200)
+        res
+            .send({
+                data: {
+                    id: newUser.id,
+                    name: newUser.name,
+                    email: newUser.email,
+                    rol: newUser.role
+                }
+            })
+            .status(200)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
@@ -75,7 +84,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
                 maxAge: 1000 * 60 * 60, // 1 hora de vida
                 sameSite: "lax"
             })
-            .send({ data: { userName: user.name, email: user.email } })
+            .send({ data: user })
             .status(200)
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
