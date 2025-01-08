@@ -3,6 +3,7 @@ import CompanyModel from "../models/Company";
 import { companyToAdd, companyToSend, verifyToLoginCompany } from "../utils";
 import { createToken } from "../utils";
 import ServiceModel from "../models/Service";
+import { Email } from "../types";
 
 export const getCompanies = async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -24,7 +25,18 @@ export const createCompany = async (req: Request, res: Response): Promise<void> 
         if (companyFound) throw new Error("Ya existe una empresa con este email.")
 
         await newCompany.save()
+        const token = createToken({
+            id: newCompany.id,
+            name: newCompany.name,
+            email: newCompany.email as Email
+        })
+
         res
+            .cookie("acces_token", token, {
+                httpOnly: true, // Solo leer en el servidor
+                maxAge: 1000 * 60 * 60, // 1 hora de vida
+                sameSite: "lax"
+            })
             .send({
                 data: {
                     id: newCompany.id,

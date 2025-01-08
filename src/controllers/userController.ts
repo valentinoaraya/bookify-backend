@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { userToAdd, verifyToLoginUser } from "../utils";
 import UserModel from "../models/User";
 import { createToken } from "../utils";
+import { Email } from "../types";
 
 export const getUsers = async (req: Request, res: Response): Promise<void | Response> => {
 
@@ -56,7 +57,18 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         if (userFound) throw new Error("Ya existe una cuenta con este email.")
 
         await newUser.save()
+        const token = createToken({
+            id: newUser.id,
+            name: newUser.name,
+            email: newUser.email as Email,
+        })
+
         res
+            .cookie("acces_token", token, {
+                httpOnly: true, // Solo leer en el servidor
+                maxAge: 1000 * 60 * 60, // 1 hora de vida
+                sameSite: "lax"
+            })
             .send({
                 data: {
                     id: newUser.id,
