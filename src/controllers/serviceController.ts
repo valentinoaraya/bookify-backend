@@ -1,6 +1,8 @@
 import { Request, Response } from "express";
 import ServiceModel from "../models/Service";
 import CompanyModel from "../models/Company";
+import AppointmentModel from "../models/Appointment";
+import UserModel from "../models/User";
 import { serviceToAdd, serviceToUpdate } from "../utils";
 
 // Empresa crea un nuevo servicio
@@ -54,7 +56,25 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
             $pull: { services: id }
         })
 
-        res.send({ data: "Servicio eliminado" }).status(200)
+        const appointmentsToDelete = await AppointmentModel.find({ serviceId: id });
+
+        if (appointmentsToDelete.length > 0) {
+            const appointmentIds = appointmentsToDelete.map(app => app._id)
+            await AppointmentModel.deleteMany({ _id: { $in: appointmentIds } })
+            await CompanyModel.findByIdAndUpdate(service.companyId, {
+                $pull: { scheduledAppointments: { $in: appointmentIds } }
+            })
+            await UserModel.updateMany(
+                { appointments: { $in: appointmentIds } },
+                { $pull: { appointments: { $in: appointmentIds } } }
+            );
+        }
+
+        res.send({
+            data: "Servicio eliminado",
+            serviceId: id,
+            appointmentsToDelete: appointmentsToDelete.map(app => app._id)
+        }).status(200)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(500)

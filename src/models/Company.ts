@@ -10,6 +10,7 @@ const CompanySchema = new Schema({
     phone: { type: String, required: true },
     role: { type: String, enum: ["admin", "user"], default: "user" },
     services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
+    scheduledAppointments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

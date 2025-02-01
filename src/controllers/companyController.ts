@@ -108,17 +108,31 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
 
         const company = req.company
 
-        const newCompany = await CompanyModel.findById(company?.id).populate("services")
+        const newCompany = await CompanyModel.findById(company?.id)
+            .populate("services")
+            .populate({
+                path: "scheduledAppointments",
+                populate: [
+                    { path: "serviceId", model: "Service" },
+                    {
+                        path: "clientId",
+                        model: "User",
+                        select: "name lastName email phone"
+                    }
+                ]
+            })
 
         if (!newCompany) return res.send({ error: "No se encontró empresa." }).status(400)
 
         res.send({
             data: {
                 name: newCompany.name,
+                phone: newCompany.phone,
                 email: newCompany.email,
                 city: newCompany.city,
                 street: newCompany.street,
                 number: newCompany.number,
+                scheduledAppointments: newCompany.scheduledAppointments,
                 services: newCompany.services,
             }
         })
@@ -126,6 +140,4 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
     }
-
-
 }
