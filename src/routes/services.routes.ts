@@ -6,7 +6,7 @@ import verifyService from "../middlewares/verifyServices";
 const servicesRouter = Router()
 
 servicesRouter.post("/create-service", authenticateTokenCompany, createService)
-servicesRouter.post("/edit-service/:id", authenticateTokenCompany, verifyService, editService)
-servicesRouter.post("/delete-service/:id", authenticateTokenCompany, verifyService, deleteService)
+servicesRouter.put("/edit-service/:id", authenticateTokenCompany, verifyService, editService)
+servicesRouter.delete("/delete-service/:id", authenticateTokenCompany, verifyService, deleteService)
 
 export default servicesRouter
