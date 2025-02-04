@@ -102,3 +102,31 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         res.send({ error: error.message }).status(400)
     }
 }
+
+// Actualizar
+
+export const updateUser = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const user = req.user
+        const data = req.body
+        const updatedUser = await UserModel.findByIdAndUpdate(
+            user?.id,
+            { $set: data },
+            { new: true }
+        )
+
+        if (!updatedUser) return res.send({ error: "No se encontró usuario" }).status(400)
+
+        const fullData = {
+            type: "user",
+            name: updatedUser.name,
+            lastName: updatedUser.lastName,
+            email: updatedUser.email,
+            phone: updatedUser.phone,
+        }
+
+        res.send({ data: fullData }).status(200)
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+}

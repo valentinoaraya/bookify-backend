@@ -141,3 +141,33 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
         res.send({ error: error.message }).status(500)
     }
 }
+
+// Actualizar
+
+export const updateCompany = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const company = req.company
+        const data = req.body
+        const updatedCompany = await CompanyModel.findByIdAndUpdate(
+            company?.id,
+            { $set: data },
+            { new: true }
+        )
+
+        if (!updatedCompany) return res.send({ error: "No se encontró la empresa" }).status(400)
+
+        const fullData = {
+            type: "company",
+            name: updatedCompany.name,
+            email: updatedCompany.email,
+            phone: updatedCompany.phone,
+            city: updatedCompany.city,
+            street: updatedCompany.street,
+            number: updatedCompany.number
+        }
+
+        res.send({ data: fullData }).status(200)
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+}
