@@ -130,3 +130,9 @@ export const updateUser = async (req: Request, res: Response): Promise<void | Re
         res.send({ error: error.message }).status(500)
     }
 }
+
+// Logout
+
+export const logoutUser = async (_req: Request, res: Response): Promise<void> => {
+    res.clearCookie("acces_token").send({ data: "Sesión cerrada" }).status(200)
+}
