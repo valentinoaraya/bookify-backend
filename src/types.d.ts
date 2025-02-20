@@ -57,3 +57,5 @@ export interface Company extends CompanyInputs {
 }
 
 export type CompanyWithoutPassword = Omit<Company, "password">
+
+export type AvailableAppointment = `${number}/${number}/${number} ${number}:${number}`

@@ -3,7 +3,7 @@ import ServiceModel from "../models/Service";
 import CompanyModel from "../models/Company";
 import AppointmentModel from "../models/Appointment";
 import UserModel from "../models/User";
-import { serviceToAdd, serviceToUpdate } from "../utils";
+import { generateAppointments, serviceToAdd, serviceToUpdate } from "../utils";
 
 // Empresa crea un nuevo servicio
 export const createService = async (req: Request, res: Response) => {
@@ -75,6 +75,33 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
             serviceId: id,
             appointmentsToDelete: appointmentsToDelete.map(app => app._id)
         }).status(200)
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+}
+
+// Empresa habilita turnos para un servicio
+
+export const enabledAppointments = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { id } = req.params
+        const { hourStart, hourFinish, turnEach, days } = req.body
+
+        const arrayAppointments = generateAppointments({
+            hourStart,
+            hourFinish,
+            turnEach,
+            days
+        })
+
+        const updatedService = await ServiceModel.findByIdAndUpdate(id, {
+            $push: { availableAppointments: { $each: arrayAppointments } }
+        }, { new: true }).lean();
+
+        if (!updatedService) return res.send({ error: "Servicio no encontrado" }).status(404);
+
+        res.send({ data: updatedService.availableAppointments }).status(200);
 
     } catch (error: any) {
         res.send({ error: error.message }).status(500)

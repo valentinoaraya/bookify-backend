@@ -7,7 +7,8 @@ const ServiceSchema = new Schema({
     duration: { type: Number, required: true },
     price: { type: Number },
     createdAt: { type: Date, default: Date.now },
-    updatedAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, defaultq: Date.now },
+    availableAppointments: [{ type: String, default: [] }]
 })
 
 const ServiceModel = mongoose.model("Service", ServiceSchema)
