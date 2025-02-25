@@ -107,3 +107,21 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
         res.send({ error: error.message }).status(500)
     }
 }
+
+// Empresa eliminar un turno habilitado
+
+export const deleteEnabledAppointment = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { id } = req.params
+        const { date } = req.body
+
+        const updatedService = await ServiceModel.findByIdAndUpdate(id, {
+            $pull: { availableAppointments: date }
+        }, { new: true }).lean()
+
+        res.send({ data: updatedService?.availableAppointments }).status(200)
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+}

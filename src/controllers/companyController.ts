@@ -126,6 +126,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
 
         res.send({
             data: {
+                _id: newCompany._id,
                 name: newCompany.name,
                 phone: newCompany.phone,
                 email: newCompany.email,
@@ -176,4 +177,26 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
 
 export const logoutCompany = async (_req: Request, res: Response): Promise<void> => {
     res.clearCookie("acces_token").send({ data: "Sesión cerrada" }).status(200)
+}
+
+// Obtener servicios de una empresa
+
+export const getAppointmentsServices = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { id } = req.params
+
+        const company = await CompanyModel.findById(id).populate("services")
+
+        if (!company) return res.send({ error: "Empresa no encontrada" }).status(404)
+
+        res.send({
+            data: {
+                services: company.services,
+                scheduledAppointments: company.scheduledAppointments
+            }
+        }).status(200)
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
 }

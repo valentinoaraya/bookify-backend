@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createCompany, getCompanies, getCompaniesServices, getCompany, getCompanyById, loginCompany, logoutCompany, updateCompany } from "../controllers/companyController";
+import { createCompany, getAppointmentsServices, getCompanies, getCompaniesServices, getCompany, getCompanyById, loginCompany, logoutCompany, updateCompany } from "../controllers/companyController";
 import { authenticateTokenCompany } from "../middlewares/verifyTokens";
 
 const companiesRouter = Router()
@@ -12,5 +12,6 @@ companiesRouter.post("/logout", logoutCompany)
 companiesRouter.get("/search", getCompaniesServices)
 companiesRouter.get("/company/:id", getCompanyById)
 companiesRouter.get("/get-company", authenticateTokenCompany, getCompany)
+companiesRouter.get("/get-appointments-services/:id", authenticateTokenCompany, getAppointmentsServices)
 
 export default companiesRouter
