@@ -125,3 +125,36 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
         res.send({ error: error.message }).status(500)
     }
 }
+
+// Usuario realiza una búsqueda de servicio o empresa
+export const searchServices = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { query } = req.query
+        if (!query) return res.send({ message: "Falta el parámetro de búsqueda" })
+
+        const services = await ServiceModel.find({ title: { $regex: query, $options: "i" } })
+            .populate({
+                path: "companyId",
+                model: "Company",
+                select: "name email city street number phone"
+            })
+        const company = await CompanyModel.findOne({ name: { $regex: query, $options: "i" } });
+
+        if (company) {
+            const companyServices = await ServiceModel.find({ companyId: company._id })
+                .populate({
+                    path: "companyId",
+                    model: "Company",
+                    select: "name email city street number phone"
+                })
+
+            return res.send({ data: companyServices }).status(200);
+        }
+
+        res.send({ data: services }).status(200);
+
+    } catch (error: any) {
+        res.send({ error: error.message }).status(500)
+    }
+
+}

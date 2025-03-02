@@ -126,6 +126,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
 
         res.send({
             data: {
+                type: "company",
                 _id: newCompany._id,
                 name: newCompany.name,
                 phone: newCompany.phone,

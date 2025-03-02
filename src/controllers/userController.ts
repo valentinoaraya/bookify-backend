@@ -24,8 +24,8 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
             .populate({
                 path: "appointments",
                 populate: [
-                    { path: "serviceId", model: "Service" },
-                    { path: "companyId", model: "Company" },
+                    { path: "serviceId", model: "Service", select: "title duration price" },
+                    { path: "companyId", model: "Company", select: "name city street number" },
                 ]
             })
 
@@ -33,6 +33,8 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
 
         res.send({
             data: {
+                type: "user",
+                _id: newUser._id,
                 name: newUser.name,
                 lastName: newUser.lastName,
                 email: newUser.email,
