@@ -30,7 +30,7 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!company || !service) return res.send({ error: "Error al obtener empresa o servicio." }).status(500)
 
-        const htmlUser = emailConfirmAppointmentUser(
+        const { htmlUser, textUser } = emailConfirmAppointmentUser(
             req.user.name,
             service.title,
             company.name,
@@ -39,7 +39,7 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
             newAppointment.date.split(" ")[1]
         )
 
-        const htmlCompany = emailConfirmAppointmentCompany(
+        const { htmlCompany, textCompany } = emailConfirmAppointmentCompany(
             company.name,
             service.title,
             req.user.name,
@@ -47,8 +47,8 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
             newAppointment.date.split(" ")[1]
         )
 
-        await sendEmail(req.user.email, "Turno confirmado con éxito", "Texto hacia el usuario", htmlUser)
-        await sendEmail(company.email, "Nuevo turno agendado", "Texto hacia empresa", htmlCompany)
+        await sendEmail(req.user.email, "Turno confirmado con éxito", textUser, htmlUser)
+        await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
 
         res.send({
             data: {
@@ -94,7 +94,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!service || !company) return res.send({ error: "Error al obtener empresa, servicio o usuario." }).status(500)
 
-        const htmlUser = emailCancelAppointmentUser(
+        const { htmlUser, textUser } = emailCancelAppointmentUser(
             company.name,
             req.user.name,
             service.title,
@@ -102,7 +102,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             appointment.date.split(" ")[1],
         )
 
-        const htmlCompany = emailCancelAppointmentCompany(
+        const { htmlCompany, textCompany } = emailCancelAppointmentCompany(
             company.name,
             req.user.name,
             service.title,
@@ -110,8 +110,8 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             appointment.date.split(" ")[1],
         )
 
-        await sendEmail(req.user.email, "Turno cancelado", "Texto hacia usuario", htmlUser)
-        await sendEmail(company.email, "Un turno ha sido cancelado", "Texto hacia empresa", htmlCompany)
+        await sendEmail(req.user.email, "Turno cancelado", textUser, htmlUser)
+        await sendEmail(company.email, "Un turno ha sido cancelado", textCompany, htmlCompany)
 
         res.send({ data: appointment }).status(200)
 
@@ -142,7 +142,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!service || !user) return res.send({ error: "Error al obtener empresa, servicio o usuario." }).status(500)
 
-        const htmlUser = emailDeleteAppointmentUser(
+        const { htmlUser, textUser } = emailDeleteAppointmentUser(
             req.company.name,
             `${user.name} ${user.lastName}`,
             service.title,
@@ -150,7 +150,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             appointment.date.split(" ")[1],
         )
 
-        const htmlCompany = emailDeleteAppointmentCompany(
+        const { htmlCompany, textCompany } = emailDeleteAppointmentCompany(
             req.company.name,
             `${user.name} ${user.lastName}`,
             service.title,
@@ -158,8 +158,8 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             appointment.date.split(" ")[1],
         )
 
-        await sendEmail(user.email, "Tu turno ha sido cancelado", "Texto hacia usuario", htmlUser)
-        await sendEmail(req.company.email, "Turno cancelado", "Texto hacia empresa", htmlCompany)
+        await sendEmail(user.email, "Tu turno ha sido cancelado", textUser, htmlUser)
+        await sendEmail(req.company.email, "Turno cancelado", textCompany, htmlCompany)
 
         res.send({ data: appointment }).status(200)
 

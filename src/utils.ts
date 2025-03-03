@@ -231,38 +231,75 @@ export const generateAppointments = (body: {
 
 // Cuerpos de emails
 export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string) => {
-    return `<h2>Turno confimado con éxito</h2>
-    <p>Hola ${user.split(" ")[0]}, te informamos que tu turno para ${service} en ${company} fue confirmado.</p>
-    <p>Se te espera en ${location} el día ${date} a las ${time} hs.</p>`
+    const htmlUser = `<h2>Turno confimado con éxito</h2>
+    <p>Hola ${user.split(" ")[0]}, te informamos que tu turno para <strong>${service}</strong> en <strong>${company}</strong> fue confirmado.</p>
+    <p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>`
+
+    const textUser = `Hola ${user.split(" ")[0]},\n 
+    Te informamos que tu turno para ${service} en ${company} fue confirmado.\n
+    Se te espera en ${location} el día ${date} a las ${time} hs.`
+
+    return { htmlUser, textUser }
 }
 
 export const emailConfirmAppointmentCompany = (company: string, service: string, user: string, date: string, time: string) => {
-    return `<h2>Tienes un nuevo turno</h2>
-    <p>Hola ${company}, te informamos que ${user} ha agendado un nuevo turno para ${service}.</p>
-    <p>El turno fue agendado para el día ${date} a las ${time} hs.</p>
-    <p>Puedes ver la información completa en el panel "Prócimos turnos" en Bookify.</p>`
+    const htmlCompany = `<h2>Tienes un nuevo turno</h2>
+    <p>Hola ${company}, te informamos que <strong>${user}</strong> ha agendado un nuevo turno para <strong>${service}</strong>.</p>
+    <p>El turno fue agendado para el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
+    <p>Puedes ver la información completa en el panel "Próximos turnos" en Bookify.</p>`
+
+    const textCompany = `Hola ${company},\n
+    Te informamos que ${user} ha agendado un nuevo turno para ${service}.\n
+    El turno fue agendado para el día ${date} a las ${time} hs.\n
+    Puedes ver la información completa en el panel "Próximos turnos" en Bookify.`
+
+    return { htmlCompany, textCompany }
 }
 
 export const emailCancelAppointmentUser = (company: string, user: string, service: string, date: string, time: string) => {
-    return `<h2>Turno cancelado</h2>
-    <p>Hola ${user}, el turno que tenías para ${service} en ${company} se ha cancelado correctamente.</p>
+    const htmlUser = `<h2>Turno cancelado</h2>
+    <p>Hola ${user}, el turno que tenías para <strong>${service}</strong> en <strong>${company}</strong> se ha cancelado correctamente.</p>
     <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+
+    const textUser = `Hola ${user},\n
+    El turno que tenías para ${service} en ${company} se ha cancelado correctamente.\n
+    El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.`
+
+    return { htmlUser, textUser }
 }
 
 export const emailCancelAppointmentCompany = (company: string, user: string, service: string, date: string, time: string) => {
-    return `<h2>Un turno ha sido cancelado</h2>
-    <p>Hola ${company}, el usuario ${user} ha cancelado el turno que tenía para ${service}.</p>
+    const htmlCompany = `<h2>Un turno ha sido cancelado</h2>
+    <p>Hola ${company}, el usuario <strong>${user}</strong> ha cancelado el turno que tenía para <strong>${service}</strong>.</p>
     <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+
+    const textCompany = `Hola ${company},\n
+    El usuario ${user} ha cancelado el turno que tenía para ${service}.\n
+    El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.`
+
+    return { htmlCompany, textCompany }
 }
 
 export const emailDeleteAppointmentUser = (company: string, user: string, service: string, date: string, time: string) => {
-    return `<h2>Tu turno ha sido cancelado</h2>
-    <p>Hola ${user.split(" ")[0]}, el turno que tenías para ${service} ha sido cancelado por ${company}.</p>
+    const htmlUser = `<h2>Tu turno ha sido cancelado</h2>
+    <p>Hola ${user.split(" ")[0]}, el turno que tenías para <strong>${service}</strong> ha sido cancelado por <strong>${company}</strong>.</p>
     <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+
+    const textUser = `Hola ${user.split(" ")[0]},\n
+    El turno que tenías para ${service} ha sido cancelado por ${company}.\n
+    El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.`
+
+    return { htmlUser, textUser }
 }
 
 export const emailDeleteAppointmentCompany = (company: string, user: string, service: string, date: string, time: string) => {
-    return `<h2>Turno cancelado</h2>
-    <p>Hola ${company}, el turno que ${user} tenía para ${service} ha sido cancelado correctamente.</p>
+    const htmlCompany = `<h2>Turno cancelado</h2>
+    <p>Hola ${company}, el turno que <strong>${user}</strong> tenía para <strong>${service}</strong> ha sido cancelado correctamente.</p>
     <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+
+    const textCompany = `Hola ${company},\n
+    El turno que ${user} tenía para ${service} ha sido cancelado correctamente.\n
+    El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.`
+
+    return { htmlCompany, textCompany }
 }
