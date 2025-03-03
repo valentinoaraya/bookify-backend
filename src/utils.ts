@@ -6,7 +6,6 @@ import jwt from "jsonwebtoken"
 import { JWT_KEY } from "./config";
 import moment from "moment";
 
-
 const isString = (param: any): boolean => {
     return (typeof param === "string" || param instanceof String)
 }
@@ -111,7 +110,7 @@ export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithIDRol
 
     return {
         id: userFound._id,
-        name: userFound.name,
+        name: `${userFound.name} ${userFound.lastName}`,
         email: userFound.email as Email,
         rol: userFound.role
     }
@@ -229,3 +228,41 @@ export const generateAppointments = (body: {
 
     return availableAppointments;
 };
+
+// Cuerpos de emails
+export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string) => {
+    return `<h2>Turno confimado con éxito</h2>
+    <p>Hola ${user.split(" ")[0]}, te informamos que tu turno para ${service} en ${company} fue confirmado.</p>
+    <p>Se te espera en ${location} el día ${date} a las ${time} hs.</p>`
+}
+
+export const emailConfirmAppointmentCompany = (company: string, service: string, user: string, date: string, time: string) => {
+    return `<h2>Tienes un nuevo turno</h2>
+    <p>Hola ${company}, te informamos que ${user} ha agendado un nuevo turno para ${service}.</p>
+    <p>El turno fue agendado para el día ${date} a las ${time} hs.</p>
+    <p>Puedes ver la información completa en el panel "Prócimos turnos" en Bookify.</p>`
+}
+
+export const emailCancelAppointmentUser = (company: string, user: string, service: string, date: string, time: string) => {
+    return `<h2>Turno cancelado</h2>
+    <p>Hola ${user}, el turno que tenías para ${service} en ${company} se ha cancelado correctamente.</p>
+    <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+}
+
+export const emailCancelAppointmentCompany = (company: string, user: string, service: string, date: string, time: string) => {
+    return `<h2>Un turno ha sido cancelado</h2>
+    <p>Hola ${company}, el usuario ${user} ha cancelado el turno que tenía para ${service}.</p>
+    <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+}
+
+export const emailDeleteAppointmentUser = (company: string, user: string, service: string, date: string, time: string) => {
+    return `<h2>Tu turno ha sido cancelado</h2>
+    <p>Hola ${user.split(" ")[0]}, el turno que tenías para ${service} ha sido cancelado por ${company}.</p>
+    <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+}
+
+export const emailDeleteAppointmentCompany = (company: string, user: string, service: string, date: string, time: string) => {
+    return `<h2>Turno cancelado</h2>
+    <p>Hola ${company}, el turno que ${user} tenía para ${service} ha sido cancelado correctamente.</p>
+    <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
+}
