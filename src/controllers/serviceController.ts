@@ -3,7 +3,8 @@ import ServiceModel from "../models/Service";
 import CompanyModel from "../models/Company";
 import AppointmentModel from "../models/Appointment";
 import UserModel from "../models/User";
-import { generateAppointments, serviceToAdd, serviceToUpdate } from "../utils";
+import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
+import { generateAppointments } from "../utils/generateAppointments";
 
 // Empresa crea un nuevo servicio
 export const createService = async (req: Request, res: Response) => {

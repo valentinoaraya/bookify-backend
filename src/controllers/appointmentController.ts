@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
-import { appointmentToAdd, emailCancelAppointmentCompany, emailCancelAppointmentUser, emailConfirmAppointmentUser, emailConfirmAppointmentCompany, emailDeleteAppointmentUser, emailDeleteAppointmentCompany } from "../utils";
+import { emailCancelAppointmentCompany, emailCancelAppointmentUser, emailConfirmAppointmentUser, emailConfirmAppointmentCompany, emailDeleteAppointmentUser, emailDeleteAppointmentCompany } from "../utils/emailTextsAndHtmls";
+import { appointmentToAdd } from "../utils/verifyData";
 import ServiceModel from "../models/Service";
 import AppointmentModel from "../models/Appointment";
 import UserModel from "../models/User";

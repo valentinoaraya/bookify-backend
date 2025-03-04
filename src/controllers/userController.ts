@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { userToAdd, verifyToLoginUser } from "../utils";
+import { userToAdd, verifyToLoginUser } from "../utils/verifyData";
 import UserModel from "../models/User";
-import { createToken } from "../utils";
+import { createToken } from "../utils/verifyData";
 import { Email } from "../types";
 
 export const getUsers = async (req: Request, res: Response): Promise<void | Response> => {

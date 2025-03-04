@@ -1,7 +1,6 @@
 import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
-import { companyToAdd, companyToSend, verifyToLoginCompany } from "../utils";
-import { createToken } from "../utils";
+import { createToken, companyToAdd, companyToSend, verifyToLoginCompany } from "../utils/verifyData";
 import ServiceModel from "../models/Service";
 import { Email } from "../types";
 

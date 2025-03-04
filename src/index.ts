@@ -8,6 +8,7 @@ import cors from "cors"
 import servicesRouter from "./routes/services.routes"
 import { PORT, MONGOOSE_URL } from "./config"
 import { startCronJobs } from "./services/emailService"
+import { startCleanupAppointments } from "./utils/cleanupAppointments"
 
 const app = express()
 
@@ -27,6 +28,7 @@ mongoose.connect(MONGOOSE_URL as string)
     })
 
 startCronJobs()
+startCleanupAppointments()
 
 app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
