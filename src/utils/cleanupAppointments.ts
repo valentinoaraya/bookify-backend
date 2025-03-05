@@ -15,9 +15,13 @@ export const deleteOldAppointments = async () => {
             { availableAppointments: { $regex: `^${yesterday}` } },
             { $pull: { availableAppointments: { $regex: `^${yesterday}` } } }
         )
+        await ServiceModel.updateMany(
+            { scheduledAppointments: { $regex: `^${yesterday}` } },
+            { $pull: { scheduledAppointments: { $regex: `^${yesterday}` } } }
+        )
 
         console.log(`🗑️  ${resultScheduledAppointemnts.deletedCount} turnos agendados eliminados.`)
-        console.log(`🗑️  ${resultAvailableAppointemnts.matchedCount} turnos sin agendar eliminados.`)
+        console.log(`🗑️  ${resultAvailableAppointemnts.modifiedCount} turnos sin agendar eliminados.`)
 
     } catch (error: any) {
         console.error(error)
