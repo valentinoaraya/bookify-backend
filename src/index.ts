@@ -6,14 +6,14 @@ import companiesRouter from "./routes/companies.routes"
 import userRouter from "./routes/user.routes"
 import cors from "cors"
 import servicesRouter from "./routes/services.routes"
-import { PORT, MONGOOSE_URL } from "./config"
+import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
 import { startCronJobs } from "./services/emailService"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
 
 const app = express()
 
 app.use(cors({
-    origin: "http://localhost:5173",
+    origin: FRONTEND_URL || "http://localhost:5173",
     credentials: true
 }))
 app.use(express.json())
