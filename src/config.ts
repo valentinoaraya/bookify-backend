@@ -10,4 +10,3 @@ export const NODEMAILER_HOST = process.env.NODEMAILER_HOST
 export const NODEMAILER_PORT = process.env.NODEMAILER_PORT
 export const NODEMAILER_USER = process.env.NODEMAILER_USER
 export const NODEMAILER_PASSWORD = process.env.NODEMAILER_PASSWORD
-export const TYPE_SECURE = process.env.TYPE_SECURE
