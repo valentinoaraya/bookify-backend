@@ -34,7 +34,7 @@ export const createCompany = async (req: Request, res: Response): Promise<void> 
             .cookie("acces_token", token, {
                 httpOnly: true, // Solo leer en el servidor
                 maxAge: 1000 * 60 * 60, // 1 hora de vida
-                sameSite: "lax"
+                sameSite: "none"
             })
             .send({
                 data: {
@@ -60,7 +60,7 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
             .cookie("acces_token", token, {
                 httpOnly: true, // Solo leer en el servidor
                 maxAge: 1000 * 60 * 60, // 1 hora de vida
-                sameSite: "lax"
+                sameSite: "none"
             })
             .send({ data: company })
             .status(200)
