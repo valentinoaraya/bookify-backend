@@ -3,7 +3,7 @@ import CompanyModel from "../models/Company";
 import { createToken, companyToAdd, companyToSend, verifyToLoginCompany } from "../utils/verifyData";
 import ServiceModel from "../models/Service";
 import { Email } from "../types";
-import { NODE_ENV } from "../config";
+import { TYPE_SECURE } from "../config";
 
 export const getCompanies = async (_req: Request, res: Response): Promise<void> => {
     try {
@@ -35,7 +35,7 @@ export const createCompany = async (req: Request, res: Response): Promise<void> 
             .cookie("acces_token", token, {
                 httpOnly: true, // Solo leer en el servidor
                 maxAge: 1000 * 60 * 60, // 1 hora de vida
-                secure: NODE_ENV === "production",
+                secure: TYPE_SECURE === "production",
                 sameSite: "none"
             })
             .send({
@@ -62,7 +62,7 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
             .cookie("acces_token", token, {
                 httpOnly: true, // Solo leer en el servidor
                 maxAge: 1000 * 60 * 60, // 1 hora de vida
-                secure: NODE_ENV === "production",
+                secure: TYPE_SECURE === "production",
                 sameSite: "none"
             })
             .send({ data: company })
