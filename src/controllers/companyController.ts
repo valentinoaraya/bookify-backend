@@ -3,16 +3,6 @@ import CompanyModel from "../models/Company";
 import { createToken, companyToAdd, companyToSend, verifyToLoginCompany } from "../utils/verifyData";
 import ServiceModel from "../models/Service";
 import { Email } from "../types";
-import { TYPE_SECURE } from "../config";
-
-export const getCompanies = async (_req: Request, res: Response): Promise<void> => {
-    try {
-        const companies = await CompanyModel.find()
-        res.send({ data: companies }).status(200)
-    } catch (error: any) {
-        res.send({ error: error.message }).status(500)
-    }
-}
 
 // Registrar
 
@@ -31,20 +21,14 @@ export const createCompany = async (req: Request, res: Response): Promise<void> 
             email: newCompany.email as Email
         })
 
-        res
-            .cookie("acces_token", token, {
-                httpOnly: true, // Solo leer en el servidor
-                maxAge: 1000 * 60 * 60, // 1 hora de vida
-                secure: TYPE_SECURE === "production",
-                sameSite: "none"
-            })
-            .send({
-                data: {
-                    id: newCompany.id,
-                    name: newCompany.name,
-                    email: newCompany.email
-                }
-            })
+        res.send({
+            data: {
+                id: newCompany.id,
+                name: newCompany.name,
+                email: newCompany.email,
+                access_token: token
+            }
+        })
             .status(200)
 
     } catch (error: any) {
@@ -58,15 +42,7 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
     try {
         const company = await verifyToLoginCompany(req.body)
         const token = createToken(company)
-        res
-            .cookie("acces_token", token, {
-                httpOnly: true, // Solo leer en el servidor
-                maxAge: 1000 * 60 * 60, // 1 hora de vida
-                secure: TYPE_SECURE === "production",
-                sameSite: "none"
-            })
-            .send({ data: company })
-            .status(200)
+        res.send({ data: { ...company, access_token: token } }).status(200)
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
     }
@@ -174,12 +150,6 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
     }
-}
-
-// Logout
-
-export const logoutCompany = async (_req: Request, res: Response): Promise<void> => {
-    res.clearCookie("acces_token").send({ data: "Sesión cerrada" }).status(200)
 }
 
 // Obtener servicios de una empresa

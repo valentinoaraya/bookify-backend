@@ -4,7 +4,7 @@ import { BasicInfoWithID, BasicInfoWithIDRole } from "../types"
 import { JWT_KEY } from "../config"
 
 export const authenticateTokenUser = (req: Request, res: Response, next: NextFunction): void | Response => {
-    const token = req.cookies.acces_token
+    const token = req.headers.authorization?.split(" ")[1]
 
     if (!token) return res.send({ error: "Usuario no autorizado" }).status(401)
 
@@ -19,7 +19,7 @@ export const authenticateTokenUser = (req: Request, res: Response, next: NextFun
 
 
 export const authenticateTokenCompany = (req: Request, res: Response, next: NextFunction): void | Response => {
-    const token = req.cookies.acces_token
+    const token = req.headers.authorization?.split(" ")[1]
 
     if (!token) return res.send({ error: "Usuario no autorizado" }).status(401)
 

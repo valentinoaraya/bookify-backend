@@ -3,19 +3,6 @@ import { userToAdd, verifyToLoginUser } from "../utils/verifyData";
 import UserModel from "../models/User";
 import { createToken } from "../utils/verifyData";
 import { Email } from "../types";
-import { TYPE_SECURE } from "../config";
-
-export const getUsers = async (req: Request, res: Response): Promise<void | Response> => {
-
-    if (req.user?.rol != "admin") return res.send({ error: "Usuario no autorizado" }).status(401)
-
-    try {
-        const users = await UserModel.find()
-        res.send({ data: users }).status(200)
-    } catch (error: any) {
-        res.send({ error: error.message }).status(500)
-    }
-}
 
 export const getUser = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -66,21 +53,15 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
             email: newUser.email as Email,
         })
 
-        res
-            .cookie("acces_token", token, {
-                httpOnly: true, // Solo leer en el servidor
-                maxAge: 1000 * 60 * 60, // 1 hora de vida
-                secure: TYPE_SECURE === "production",
-                sameSite: "none"
-            })
-            .send({
-                data: {
-                    id: newUser.id,
-                    name: newUser.name,
-                    email: newUser.email,
-                    rol: newUser.role
-                }
-            })
+        res.send({
+            data: {
+                id: newUser.id,
+                name: newUser.name,
+                email: newUser.email,
+                rol: newUser.role,
+                access_token: token
+            }
+        })
             .status(200)
 
     } catch (error: any) {
@@ -94,15 +75,7 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const user = await verifyToLoginUser(req.body)
         const token = createToken(user)
-        res
-            .cookie("acces_token", token, {
-                httpOnly: true, // Solo leer en el servidor
-                maxAge: 1000 * 60 * 60, // 1 hora de vida
-                secure: TYPE_SECURE === "production",
-                sameSite: "none"
-            })
-            .send({ data: user })
-            .status(200)
+        res.send({ data: { ...user, access_token: token } }).status(200)
     } catch (error: any) {
         res.send({ error: error.message }).status(400)
     }
@@ -134,10 +107,4 @@ export const updateUser = async (req: Request, res: Response): Promise<void | Re
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
     }
-}
-
-// Logout
-
-export const logoutUser = async (_req: Request, res: Response): Promise<void> => {
-    res.clearCookie("acces_token").send({ data: "Sesión cerrada" }).status(200)
 }
