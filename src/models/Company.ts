@@ -11,6 +11,10 @@ const CompanySchema = new Schema({
     role: { type: String, enum: ["admin", "user"], default: "user" },
     services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
     scheduledAppointments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }],
+    connectedWithMP: { type: Boolean, default: false },
+    mp_access_token: { type: String, default: "" },
+    mp_refresh_token: { type: String, default: "" },
+    mp_user_id: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

@@ -114,6 +114,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 number: newCompany.number,
                 scheduledAppointments: newCompany.scheduledAppointments,
                 services: newCompany.services,
+                connectedWithMP: newCompany.connectedWithMP
             }
         })
 

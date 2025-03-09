@@ -21,7 +21,7 @@ export const deleteOldAppointments = async () => {
         )
 
         console.log(`🗑️  ${resultScheduledAppointemnts.deletedCount} turnos agendados eliminados.`)
-        console.log(`🗑️  ${resultAvailableAppointemnts.modifiedCount} turnos sin agendar eliminados.`)
+        console.log(`🗑️  ${resultAvailableAppointemnts.modifiedCount === 1 ? "Turnos sin agendar eliminados." : "No habían turnos sin agendar para eliminar."} `)
 
     } catch (error: any) {
         console.error(error)

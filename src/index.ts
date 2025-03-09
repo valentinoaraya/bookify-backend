@@ -8,6 +8,7 @@ import servicesRouter from "./routes/services.routes"
 import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
 import { startCronJobs } from "./services/emailService"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
+import mercadopagoRouter from "./routes/mercadopago.routes"
 
 const app = express()
 
@@ -32,6 +33,7 @@ app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
 app.use("/users", userRouter)
 app.use("/services", servicesRouter)
+app.use("/mercadopago", mercadopagoRouter)
 
 app.listen(PORT, () => {
     console.log(`Server runing on port ${PORT}`)
