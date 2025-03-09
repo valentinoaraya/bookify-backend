@@ -1,6 +1,5 @@
 import express from "express"
 import mongoose from "mongoose"
-import cookieParser from "cookie-parser"
 import appointmentsRouter from "./routes/appointments.routes"
 import companiesRouter from "./routes/companies.routes"
 import userRouter from "./routes/user.routes"
@@ -17,7 +16,6 @@ app.use(cors({
     credentials: true
 }))
 app.use(express.json())
-app.use(cookieParser())
 
 mongoose.connect(MONGOOSE_URL as string)
     .then(() => {
