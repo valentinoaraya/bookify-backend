@@ -1,21 +1,38 @@
 import { Response, Request } from "express"
-import { preference } from "../services/mercadopagoService"
 import { CLIENT_ID_MP, CLIENT_SECRET_MP, REDIRECT_URL_MP } from "../config"
 import CompanyModel from "../models/Company"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
+
+        if (!req.user) return res.send({ error: "Usuario no autorizado." })
+
+        // 1. Obtengo los datos necesarios
+        const { name, email } = req.user
+        const { empresaId } = req.params
+        const { serviceId, title, price } = req.body
+
+        const empresa = await CompanyModel.findById(empresaId)
+
+        if (!empresa || !empresa.mp_access_token) return res.send({ error: "La empresa no está vinculada con Mercado Pago" }).status(404)
+
+        // 2. Creo el body de la preferencia
         const body = {
             items: [
                 {
-                    id: req.body.serviceId as string,
-                    title: req.body.title as string,
-                    unit_price: 100,
+                    id: serviceId as string,
+                    title: title as string,
+                    unit_price: price,
                     quantity: 1,
                     currency_id: "ARS"
                 }
             ],
+            payer: {
+                name: name,
+                email: email
+            },
             back_urls: {
+                // Luego cambiar a links de Bookify (Investigar como confirmar el turno)
                 success: "https://github.com",
                 failure: "https://www.youtube.com",
                 pending: "https://www.instagram.com"
@@ -23,8 +40,20 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
             auto_return: "approved"
         }
 
-        const response = await preference.create({ body })
-        res.send({ data: response.id }).status(200)
+        // 3. Creo la preferencia con el access_token de la empresa
+        const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
+            method: "POST",
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${empresa.mp_access_token}`
+            },
+            body: JSON.stringify(body)
+        })
+
+        // 4. Leo respuesta de Mercado Pago
+        const data = await response.json()
+
+        res.send({ init_point: data.init_point }).status(200)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
@@ -69,6 +98,26 @@ export const getAccessTokenClient = async (req: Request, res: Response): Promise
 
     } catch (error: any) {
         console.error(error)
-        res.send({ error: "Failed to exchange code for token" }).status(500)
+        res.send({ error: "Failed to exchange code for token." }).status(500)
+    }
+}
+
+export const generateOAuthURL = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { empresaId } = req.params
+
+        const empresa = await CompanyModel.findById(empresaId)
+
+        if (!empresa) return res.send({ error: "Empresa no encontrada." }).status(404)
+
+        if (!CLIENT_ID_MP || !REDIRECT_URL_MP) return res.send({ error: "No es posible generar la URL: Faltan parámetros." })
+
+        const authURL = `https://auth.mercadopago.com/authorization?client_id=${CLIENT_ID_MP}&response_type=code&platform_id=mp&state=${empresaId}&redirect_uri=${REDIRECT_URL_MP}`
+
+        res.send({ url: authURL }).status(200)
+
+    } catch (error: any) {
+        console.error("Failed to generate OAuth Code.")
+        res.send({ error: error.message }).status(500)
     }
 }
