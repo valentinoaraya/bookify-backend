@@ -12,12 +12,17 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
 
         const { type, action, data, user_id } = req.body
 
+        console.log(req.body)
+
         if (type === "payment" && action === "payment.created") {
 
             const paymentId = data.id
             const company = await CompanyModel.findOne({ mp_user_id: user_id })
 
-            if (!company) return res.send({ error: "No se encontró la empresa." })
+            if (!company) {
+                console.error("No se encontró la empresa.")
+                return res.send({ error: "No se encontró la empresa." })
+            }
 
             const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
                 method: "GET",
@@ -28,6 +33,8 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
             })
 
             const paymentInfo = await response.json()
+
+            console.log(paymentInfo)
 
             if (paymentInfo.status === "approved") {
                 const paramsExternalReference = paymentInfo.external_reference.split("_")
@@ -97,12 +104,15 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
                 // }).status(200)
             }
 
+
             return res.send({ error: "El pago no fué aprobado." }).status(200)
         }
 
+        console.log("Evento recibido pero no procesado.")
         res.send({ data: "Evento recibido pero no procesado." }).status(200)
 
     } catch (error: any) {
+        console.error(error.message)
         res.send({ error: error.message }).status(500)
     }
 }
