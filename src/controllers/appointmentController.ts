@@ -12,7 +12,7 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
 
         const { type, action, data, user_id } = req.body
 
-        console.log(req.body)
+        console.log("Req body: ", req.body)
 
         if (type === "payment" && action === "payment.created") {
 
@@ -27,14 +27,14 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
             const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
                 method: "GET",
                 headers: {
-                    'Authorization': `Bearer: ${company.mp_access_token}`,
+                    'Authorization': `Bearer ${company.mp_access_token}`,
                     'Content-Type': 'application/json'
                 }
             })
 
             const paymentInfo = await response.json()
 
-            console.log(paymentInfo)
+            console.log("Payment info: ", paymentInfo)
 
             if (paymentInfo.status === "approved") {
                 const paramsExternalReference = paymentInfo.external_reference.split("_")
