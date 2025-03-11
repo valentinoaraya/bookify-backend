@@ -97,7 +97,7 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
                 // }).status(200)
             }
 
-            res.send({ error: "El pago no fué aprobado." }).status(200)
+            return res.send({ error: "El pago no fué aprobado." }).status(200)
         }
 
         res.send({ data: "Evento recibido pero no procesado." }).status(200)
