@@ -10,7 +10,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         // 1. Obtengo los datos necesarios
         const { name, email } = req.user
         const { empresaId } = req.params
-        const { serviceId, title, price } = req.body
+        const { companyId, serviceId, title, price, date } = req.body
 
         const empresa = await CompanyModel.findById(empresaId)
 
@@ -32,12 +32,12 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 email: email
             },
             back_urls: {
-                // Luego cambiar a links de Bookify (Investigar como confirmar el turno)
-                success: "https://github.com",
-                failure: "https://www.youtube.com",
-                pending: "https://www.instagram.com"
+                success: "https://bookify-aedes.vercel.app",
+                failure: "https://bookify-aedes.vercel.app",
+                pending: "https://bookify-aedes.vercel.app"
             },
-            auto_return: "approved"
+            auto_return: "approved",
+            external_reference: `${req.user.id}_${companyId}_${serviceId}_${date}`
         }
 
         // 3. Creo la preferencia con el access_token de la empresa
@@ -64,9 +64,7 @@ export const getAccessTokenClient = async (req: Request, res: Response): Promise
 
     const { code, state } = req.query
 
-    if (!code || !state) {
-        return res.send({ error: 'Falta code o state' }).status(400)
-    }
+    if (!code || !state) return res.send({ error: 'Falta code o state' }).status(400)
 
     try {
 
@@ -117,7 +115,7 @@ export const generateOAuthURL = async (req: Request, res: Response): Promise<voi
         res.send({ url: authURL }).status(200)
 
     } catch (error: any) {
-        console.error("Failed to generate OAuth Code.")
-        res.send({ error: error.message }).status(500)
+        console.error(error.message)
+        res.send({ error: "Failed to generate OAuth Code." }).status(500)
     }
 }

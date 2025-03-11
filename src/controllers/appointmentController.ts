@@ -9,65 +9,99 @@ import { sendEmail } from "../services/emailService";
 
 export const createAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-        if (!req.user) return res.send({ error: "Usuario no encontrado." }).status(500)
 
-        const idUser = req.user.id
-        const appointment = appointmentToAdd(req.body)
+        const { type, action, data, user_id } = req.body
 
-        const service = await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
-            $pull: { availableAppointments: appointment.date },
-            $push: { scheduledAppointments: appointment.date }
-        })
+        if (type === "payment" && action === "payment.created") {
 
-        const newAppointment = new AppointmentModel({ clientId: idUser, ...appointment })
+            const paymentId = data.id
+            const company = await CompanyModel.findOne({ mp_user_id: user_id })
 
-        const savedAppointment = await newAppointment.save()
-        await UserModel.findByIdAndUpdate(idUser, {
-            $push: { appointments: savedAppointment._id }
-        })
-        const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
-            $push: { scheduledAppointments: savedAppointment._id }
-        })
+            if (!company) return res.send({ error: "No se encontró la empresa." })
 
-        if (!company || !service) return res.send({ error: "Error al obtener empresa o servicio." }).status(500)
+            const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
+                method: "GET",
+                headers: {
+                    'Authorization': `Bearer: ${company.mp_access_token}`,
+                    'Content-Type': 'application/json'
+                }
+            })
 
-        const { htmlUser, textUser } = emailConfirmAppointmentUser(
-            req.user.name,
-            service.title,
-            company.name,
-            `${company.street} ${company.number}, ${company.city}`,
-            newAppointment.date.split(" ")[0],
-            newAppointment.date.split(" ")[1]
-        )
+            const paymentInfo = await response.json()
 
-        const { htmlCompany, textCompany } = emailConfirmAppointmentCompany(
-            company.name,
-            service.title,
-            req.user.name,
-            newAppointment.date.split(" ")[0],
-            newAppointment.date.split(" ")[1]
-        )
+            if (paymentInfo.status === "approved") {
+                const paramsExternalReference = paymentInfo.external_reference.split("_")
 
-        await sendEmail(req.user.email, "Turno confirmado con éxito", textUser, htmlUser)
-        await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
+                const userId = paramsExternalReference[0]
+                const companyId = paramsExternalReference[1]
+                const serviceId = paramsExternalReference[2]
+                const date = paramsExternalReference[3]
 
-        res.send({
-            data: {
-                _id: savedAppointment._id,
-                date: savedAppointment.date,
-                serviceId: {
-                    title: service.title,
-                    duration: service.duration,
-                    price: service.price
-                },
-                companyId: {
-                    name: company.name,
-                    city: company.city,
-                    street: company.street,
-                    number: company.number
-                },
+                const appointment = appointmentToAdd({ companyId, serviceId, date })
+
+                const service = await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
+                    $pull: { availableAppointments: appointment.date },
+                    $push: { scheduledAppointments: appointment.date }
+                })
+
+                const newAppointment = new AppointmentModel({ clientId: userId, ...appointment })
+
+                const savedAppointment = await newAppointment.save()
+                const user = await UserModel.findByIdAndUpdate(userId, {
+                    $push: { appointments: savedAppointment._id }
+                })
+                await CompanyModel.findByIdAndUpdate(appointment.companyId, {
+                    $push: { scheduledAppointments: savedAppointment._id }
+                })
+
+                if (!user || !service) return res.send({ error: "Error al obtener empresa o servicio." }).status(500)
+
+                const { htmlUser, textUser } = emailConfirmAppointmentUser(
+                    `${user.name} ${user.lastName}`,
+                    service.title,
+                    company.name,
+                    `${company.street} ${company.number}, ${company.city}`,
+                    newAppointment.date.split(" ")[0],
+                    newAppointment.date.split(" ")[1]
+                )
+
+                const { htmlCompany, textCompany } = emailConfirmAppointmentCompany(
+                    company.name,
+                    service.title,
+                    `${user.name} ${user.lastName}`,
+                    newAppointment.date.split(" ")[0],
+                    newAppointment.date.split(" ")[1]
+                )
+
+                await sendEmail(user.email, "Turno confirmado con éxito", textUser, htmlUser)
+                await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
+
+                return res.send({ data: "Pago procesado y turno confirmado." }).status(200)
+
+                // return res.send({
+                //     data: {
+                //         _id: savedAppointment._id,
+                //         date: savedAppointment.date,
+                //         serviceId: {
+                //             title: service.title,
+                //             duration: service.duration,
+                //             price: service.price
+                //         },
+                //         companyId: {
+                //             name: company.name,
+                //             city: company.city,
+                //             street: company.street,
+                //             number: company.number
+                //         },
+                //     }
+                // }).status(200)
             }
-        }).status(200)
+
+            res.send({ error: "El pago no fué aprobado." }).status(200)
+        }
+
+        res.send({ data: "Evento recibido pero no procesado." }).status(200)
+
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
     }

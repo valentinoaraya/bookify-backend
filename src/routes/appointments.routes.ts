@@ -4,7 +4,7 @@ import { authenticateTokenCompany, authenticateTokenUser } from "../middlewares/
 
 const appointmentsRouter = Router()
 
-appointmentsRouter.post("/add-appointment", authenticateTokenUser, createAppointment)
+appointmentsRouter.post("/webhooks/confirm-appointment", createAppointment)
 appointmentsRouter.delete("/cancel-appointment/:id", authenticateTokenUser, cancelAppointment)
 appointmentsRouter.delete("/delete-appointment/:id", authenticateTokenCompany, deleteAppointment)
 
