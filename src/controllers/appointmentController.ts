@@ -12,15 +12,12 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
 
         const { type, action, data, user_id } = req.body
 
-        console.log("Req body: ", req.body)
-
         if (type === "payment" && action === "payment.created") {
 
             const paymentId = data.id
             const company = await CompanyModel.findOne({ mp_user_id: user_id })
 
             if (!company) {
-                console.error("No se encontró la empresa.")
                 return res.send({ error: "No se encontró la empresa." })
             }
 
@@ -34,12 +31,9 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
 
             const paymentInfo = await response.json()
 
-            console.log("Payment info: ", paymentInfo)
 
             if (paymentInfo.status === "approved") {
                 const paramsExternalReference = paymentInfo.external_reference.split("_")
-
-                console.log("Parámetros external_reference: ", paymentInfo.external_reference)
 
                 const userId = paramsExternalReference[0]
                 const companyId = paramsExternalReference[1]
@@ -86,35 +80,14 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
                 await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
 
                 return res.send({ data: "Pago procesado y turno confirmado." }).status(200)
-
-                // return res.send({
-                //     data: {
-                //         _id: savedAppointment._id,
-                //         date: savedAppointment.date,
-                //         serviceId: {
-                //             title: service.title,
-                //             duration: service.duration,
-                //             price: service.price
-                //         },
-                //         companyId: {
-                //             name: company.name,
-                //             city: company.city,
-                //             street: company.street,
-                //             number: company.number
-                //         },
-                //     }
-                // }).status(200)
             }
-
 
             return res.send({ error: "El pago no fué aprobado." }).status(200)
         }
 
-        console.log("Evento recibido pero no procesado.")
         res.send({ data: "Evento recibido pero no procesado." }).status(200)
 
     } catch (error: any) {
-        console.error(error.message)
         res.send({ error: error.message }).status(500)
     }
 }
