@@ -39,7 +39,7 @@ export const createAppointment = async (req: Request, res: Response): Promise<vo
             if (paymentInfo.status === "approved") {
                 const paramsExternalReference = paymentInfo.external_reference.split("_")
 
-                console.log("Parámetros external_reference: ", paymentId.external_reference)
+                console.log("Parámetros external_reference: ", paymentInfo.external_reference)
 
                 const userId = paramsExternalReference[0]
                 const companyId = paramsExternalReference[1]

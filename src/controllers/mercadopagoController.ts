@@ -10,7 +10,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         // 1. Obtengo los datos necesarios
         const { name, email } = req.user
         const { empresaId } = req.params
-        const { companyId, serviceId, title, price, date } = req.body
+        const { serviceId, title, price, date } = req.body
 
         const empresa = await CompanyModel.findById(empresaId)
 
@@ -32,12 +32,12 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 email: email
             },
             back_urls: {
-                success: "https://bookify-aedes.vercel.app",
-                failure: "https://bookify-aedes.vercel.app",
-                pending: "https://bookify-aedes.vercel.app"
+                success: "https://bookify-aedes.vercel.app/user-panel",
+                failure: "https://bookify-aedes.vercel.app/user-panel",
+                pending: "https://bookify-aedes.vercel.app/user-panel"
             },
             auto_return: "approved",
-            external_reference: `${req.user.id}_${companyId}_${serviceId}_${date}`
+            external_reference: `${req.user.id}_${empresaId}_${serviceId}_${date}`
         }
 
         // 3. Creo la preferencia con el access_token de la empresa
