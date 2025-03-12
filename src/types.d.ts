@@ -43,6 +43,7 @@ export interface Service {
     description: string
     price: number
     duration: number
+    signPrice: number
 }
 
 export interface UserInputAppointment {

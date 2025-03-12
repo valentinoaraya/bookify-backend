@@ -149,7 +149,8 @@ export const serviceToAdd = (object: any): Service => {
         title: parseInput(object.title, "Titulo"),
         description: parseInput(object.description, "Descripción"),
         price: parseNumber(object.price, "Precio"),
-        duration: parseNumber(object.duration, "Duración")
+        duration: parseNumber(object.duration, "Duración"),
+        signPrice: parseNumber(object.signPrice, "Precio de seña")
     }
 
     return service

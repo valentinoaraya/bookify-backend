@@ -9,7 +9,8 @@ const ServiceSchema = new Schema({
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, defaultq: Date.now },
     availableAppointments: [{ type: String, default: [] }],
-    scheduledAppointments: [{ type: String, default: [] }]
+    scheduledAppointments: [{ type: String, default: [] }],
+    signPrice: { type: Number }
 })
 
 const ServiceModel = mongoose.model("Service", ServiceSchema)
