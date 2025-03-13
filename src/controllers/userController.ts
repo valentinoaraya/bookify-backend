@@ -2,7 +2,8 @@ import { Request, Response } from "express";
 import { userToAdd, verifyToLoginUser } from "../utils/verifyData";
 import UserModel from "../models/User";
 import { createToken } from "../utils/verifyData";
-import { Email } from "../types";
+import { type Email, PopulatedAppointment } from "../types";
+import { parseDateToString } from "../utils/parseDateToString";
 
 export const getUser = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -15,9 +16,16 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
                     { path: "serviceId", model: "Service", select: "title duration price" },
                     { path: "companyId", model: "Company", select: "name city street number" },
                 ]
-            })
+            }).lean()
 
         if (!newUser) return res.send({ error: "No se encontró usuario" }).status(400)
+
+        const newUserAppointments = newUser.appointments as unknown as PopulatedAppointment[]
+
+        const userAppointmentsWithDateInString = newUserAppointments.map(appointment => {
+            const { stringDate, time } = parseDateToString(appointment.date)
+            return { ...appointment, date: `${stringDate} ${time}` }
+        })
 
         res.send({
             data: {
@@ -27,7 +35,7 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
                 lastName: newUser.lastName,
                 email: newUser.email,
                 phone: newUser.phone,
-                appointments: newUser.appointments
+                appointments: userAppointmentsWithDateInString
             }
         }).status(200)
 

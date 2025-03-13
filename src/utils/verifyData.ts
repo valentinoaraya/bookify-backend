@@ -51,7 +51,7 @@ const parsePassword = async (passwordFromRequest: any): Promise<string> => {
 }
 
 const parseDate = (dateFromRequest: any): Date => {
-    if (!isDate(dateFromRequest) || !isString(dateFromRequest)) throw new Error("Fecha incorrecta.")
+    if (!isDate(dateFromRequest)) throw new Error("Fecha incorrecta.")
     return dateFromRequest
 }
 

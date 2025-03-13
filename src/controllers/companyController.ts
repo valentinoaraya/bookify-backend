@@ -1,8 +1,8 @@
 import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
-import { createToken, companyToAdd, companyToSend, verifyToLoginCompany } from "../utils/verifyData";
-import ServiceModel from "../models/Service";
-import { Email } from "../types";
+import { createToken, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
+import { type PopulatedAppointment, type Email, type ServiceWithAppointments } from "../types";
+import { parseDateToString } from "../utils/parseDateToString";
 
 // Registrar
 
@@ -48,38 +48,7 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
     }
 }
 
-// Obtener empresas y servicios
-
-export const getCompaniesServices = async (req: Request, res: Response): Promise<void> => {
-    const searchTerm = req.query.q as string || ''
-    try {
-
-        const companies = await CompanyModel.find({
-            name: { $regex: searchTerm, $options: 'i' }
-        })
-
-        const services = await ServiceModel.find({
-            title: { $regex: searchTerm, $options: 'i' }
-        })
-
-        res.send(searchTerm ? { data: { companies, services } } : { error: "No encontrado" })
-
-    } catch (error: any) {
-        res.send({ error: error }).status(500)
-    }
-}
-
-export const getCompanyById = async (req: Request, res: Response): Promise<void> => {
-    const { id } = req.params
-    try {
-        const company = await companyToSend(id)
-
-        res.send({ data: company }).status(200)
-
-    } catch (error: any) {
-        res.send({ error: error.message }).status(500)
-    }
-}
+// Obtener empresa
 
 export const getCompany = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -98,9 +67,34 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                         select: "name lastName email phone"
                     }
                 ]
-            })
+            }).lean()
 
         if (!newCompany) return res.send({ error: "No se encontró empresa." }).status(400)
+
+        const scheduledAppointmentsCompany = newCompany.scheduledAppointments as unknown as PopulatedAppointment[]
+        const servicesCompany = newCompany.services as unknown as ServiceWithAppointments[]
+
+        const scheduledAppointmentsWithDateInString = scheduledAppointmentsCompany.map(app => {
+            const { stringDate, time } = parseDateToString(app.date)
+            return { ...app, date: `${stringDate} ${time}` }
+        })
+
+        const servicesCompanyWithDateInString = servicesCompany.map(service => {
+            const newAvailableAppointments = service.availableAppointments.map(date => {
+                const { stringDate, time } = parseDateToString(date)
+                return `${stringDate} ${time}`
+            })
+            const newScheduledAppointments = service.scheduledAppointments.map(date => {
+                const { stringDate, time } = parseDateToString(date)
+                return `${stringDate} ${time}`
+            })
+
+            return {
+                ...service,
+                availableAppointments: newAvailableAppointments,
+                scheduledAppointments: newScheduledAppointments
+            }
+        })
 
         res.send({
             data: {
@@ -112,8 +106,8 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 city: newCompany.city,
                 street: newCompany.street,
                 number: newCompany.number,
-                scheduledAppointments: newCompany.scheduledAppointments,
-                services: newCompany.services,
+                scheduledAppointments: scheduledAppointmentsWithDateInString,
+                services: servicesCompanyWithDateInString,
                 connectedWithMP: newCompany.connectedWithMP
             }
         })
@@ -148,28 +142,6 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
         }
 
         res.send({ data: fullData }).status(200)
-    } catch (error: any) {
-        res.send({ error: error.message }).status(500)
-    }
-}
-
-// Obtener servicios de una empresa
-
-export const getAppointmentsServices = async (req: Request, res: Response): Promise<void | Response> => {
-    try {
-        const { id } = req.params
-
-        const company = await CompanyModel.findById(id).populate("services")
-
-        if (!company) return res.send({ error: "Empresa no encontrada" }).status(404)
-
-        res.send({
-            data: {
-                services: company.services,
-                scheduledAppointments: company.scheduledAppointments
-            }
-        }).status(200)
-
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
     }

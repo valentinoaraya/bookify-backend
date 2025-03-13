@@ -46,10 +46,22 @@ export interface Service {
     signPrice: number
 }
 
+export interface ServiceWithAppointments extends Service {
+    availableAppointments: Date[]
+    scheduledAppointments: Date[]
+}
+
 export interface UserInputAppointment {
     date: Date
     serviceId: string
     companyId: string
+}
+
+export interface PopulatedAppointment {
+    _id: string;
+    date: Date;
+    serviceId: Service;
+    companyId: Company;
 }
 
 export interface Company extends CompanyInputs {

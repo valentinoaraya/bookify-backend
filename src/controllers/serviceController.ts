@@ -5,6 +5,8 @@ import AppointmentModel from "../models/Appointment";
 import UserModel from "../models/User";
 import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
 import { generateAppointments } from "../utils/generateAppointments";
+import moment from "moment-timezone";
+import { parseDateToString } from "../utils/parseDateToString";
 
 // Empresa crea un nuevo servicio
 export const createService = async (req: Request, res: Response) => {
@@ -89,20 +91,25 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
         const { id } = req.params
         const { hourStart, hourFinish, turnEach, days } = req.body
 
-        const arrayAppointments = generateAppointments({
+        const arrayAppointmentsInString = generateAppointments({
             hourStart,
             hourFinish,
             turnEach,
             days
         })
 
+        const arrayAppointmentsInDate = arrayAppointmentsInString.map(date => {
+            const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
+            return newDate.toDate()
+        })
+
         const updatedService = await ServiceModel.findByIdAndUpdate(id, {
-            $push: { availableAppointments: { $each: arrayAppointments } }
+            $push: { availableAppointments: { $each: arrayAppointmentsInDate } }
         }, { new: true }).lean();
 
         if (!updatedService) return res.send({ error: "Servicio no encontrado" }).status(404);
 
-        res.send({ data: updatedService.availableAppointments }).status(200);
+        res.send({ data: arrayAppointmentsInString }).status(200);
 
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
@@ -116,11 +123,20 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
         const { id } = req.params
         const { date } = req.body
 
+        const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
+
         const updatedService = await ServiceModel.findByIdAndUpdate(id, {
-            $pull: { availableAppointments: date }
+            $pull: { availableAppointments: newDate.toDate() }
         }, { new: true }).lean()
 
-        res.send({ data: updatedService?.availableAppointments }).status(200)
+        if (!updatedService) return res.send({ error: "Servicio no encontrado." }).status(404)
+
+        const arrayAppointmentsInString = updatedService.availableAppointments.map(date => {
+            const { stringDate, time } = parseDateToString(date)
+            return `${stringDate} ${time}`
+        })
+
+        res.send({ data: arrayAppointmentsInString }).status(200)
 
     } catch (error: any) {
         res.send({ error: error.message }).status(500)
@@ -131,14 +147,15 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
 export const searchServices = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { query } = req.query
-        if (!query) return res.send({ message: "Falta el parámetro de búsqueda" })
+        if (!query) return res.send({ message: "Falta el parámetro de búsqueda." })
 
         const services = await ServiceModel.find({ title: { $regex: query, $options: "i" } })
             .populate({
                 path: "companyId",
                 model: "Company",
                 select: "name email city street number phone"
-            })
+            }).lean()
+
         const company = await CompanyModel.findOne({ name: { $regex: query, $options: "i" } });
 
         if (company) {
@@ -147,12 +164,46 @@ export const searchServices = async (req: Request, res: Response): Promise<void 
                     path: "companyId",
                     model: "Company",
                     select: "name email city street number phone"
+                }).lean()
+
+            const companyServicesWithDateInStrings = companyServices.map(service => {
+                const availableAppointmentsString = service.availableAppointments.map(date => {
+                    const { stringDate, time } = parseDateToString(date)
+                    return `${stringDate} ${time}`
+                })
+                const scheduledAppointmentsString = service.scheduledAppointments.map(date => {
+                    const { stringDate, time } = parseDateToString(date)
+                    return `${stringDate} ${time}`
                 })
 
-            return res.send({ data: companyServices }).status(200);
+                return {
+                    ...service,
+                    availableAppointments: availableAppointmentsString,
+                    scheduledAppointments: scheduledAppointmentsString
+                }
+            })
+
+            return res.send({ data: companyServicesWithDateInStrings }).status(200);
         }
 
-        res.send({ data: services }).status(200);
+        const servicesWithDateInStrings = services.map(service => {
+            const availableAppointmentsString = service.availableAppointments.map(date => {
+                const { stringDate, time } = parseDateToString(date)
+                return `${stringDate} ${time}`
+            })
+            const scheduledAppointmentsString = service.scheduledAppointments.map(date => {
+                const { stringDate, time } = parseDateToString(date)
+                return `${stringDate} ${time}`
+            })
+
+            return {
+                ...service,
+                availableAppointments: availableAppointmentsString,
+                scheduledAppointments: scheduledAppointmentsString
+            }
+        })
+
+        res.send({ data: servicesWithDateInStrings }).status(200);
 
     } catch (error: any) {
         res.send({ error: error.message }).status(500)

@@ -8,8 +8,8 @@ const ServiceSchema = new Schema({
     price: { type: Number },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, defaultq: Date.now },
-    availableAppointments: [{ type: String, default: [] }],
-    scheduledAppointments: [{ type: String, default: [] }],
+    availableAppointments: [{ type: Date, default: [] }],
+    scheduledAppointments: [{ type: Date, default: [] }],
     signPrice: { type: Number }
 })
 
