@@ -3,7 +3,7 @@ import { userToAdd, verifyToLoginUser } from "../utils/verifyData";
 import UserModel from "../models/User";
 import { createToken } from "../utils/verifyData";
 import { type Email, PopulatedAppointment } from "../types";
-import { parseDateToString } from "../utils/parseDateToString";
+import moment from "moment-timezone"
 
 export const getUser = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -23,8 +23,8 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
         const newUserAppointments = newUser.appointments as unknown as PopulatedAppointment[]
 
         const userAppointmentsWithDateInString = newUserAppointments.map(appointment => {
-            const { stringDate, time } = parseDateToString(appointment.date)
-            return { ...appointment, date: `${stringDate} ${time}` }
+            const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            return { ...appointment, date: dateInString }
         })
 
         res.send({

@@ -2,9 +2,8 @@ import nodemailer from "nodemailer"
 import { NODEMAILER_HOST, NODEMAILER_PASSWORD, NODEMAILER_PORT, NODEMAILER_USER } from "../config";
 import { Email } from "../types";
 import cron from "node-cron"
-import moment from "moment";
 import AppointmentModel from "../models/Appointment";
-import { parseDateToString } from "../utils/parseDateToString";
+import moment from "moment-timezone"
 
 const transporter = nodemailer.createTransport({
     host: NODEMAILER_HOST,
@@ -45,7 +44,7 @@ const sendAppointmentReminders = async () => {
 
         for (const appointment of appointments) {
 
-            const { stringDate, time } = parseDateToString(appointment.date)
+            const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
             await sendEmail(
                 appointment.clientId.email,
@@ -53,14 +52,14 @@ const sendAppointmentReminders = async () => {
 
                 `Hola ${appointment.clientId.name},\n
                 \nTe recordamos que tienes un turno mañana en ${appointment.companyId.name} para ${appointment.serviceId.title}.\n
-                \nFecha: ${stringDate} 
-                \nHora: ${time}\n
+                \nFecha: ${dateInString.split(' ')[0]} 
+                \nHora: ${dateInString.split(' ')[1]}\n
                 \n¡No olvides asistir!`,
 
                 `<p>Hola ${appointment.clientId.name},</p>
                 <p>Te recordamos que tienes un turno mañana en <strong>${appointment.companyId.name}</strong> para <strong>${appointment.serviceId.title}</strong>.</p>
-                <p>Fecha: ${stringDate}</p>
-                <p>Hora: ${time}</p>`
+                <p>Fecha: ${dateInString.split(' ')[0]}</p>
+                <p>Hora: ${dateInString.split(' ')[1]}</p>`
             )
         }
     } catch (error: any) {

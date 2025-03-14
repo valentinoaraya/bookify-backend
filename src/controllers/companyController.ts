@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
 import { createToken, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
 import { type PopulatedAppointment, type Email, type ServiceWithAppointments } from "../types";
-import { parseDateToString } from "../utils/parseDateToString";
+import moment from "moment-timezone";
 
 // Registrar
 
@@ -75,19 +75,13 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
         const servicesCompany = newCompany.services as unknown as ServiceWithAppointments[]
 
         const scheduledAppointmentsWithDateInString = scheduledAppointmentsCompany.map(app => {
-            const { stringDate, time } = parseDateToString(app.date)
-            return { ...app, date: `${stringDate} ${time}` }
+            const dateInString = moment(app.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            return { ...app, date: dateInString }
         })
 
         const servicesCompanyWithDateInString = servicesCompany.map(service => {
-            const newAvailableAppointments = service.availableAppointments.map(date => {
-                const { stringDate, time } = parseDateToString(date)
-                return `${stringDate} ${time}`
-            })
-            const newScheduledAppointments = service.scheduledAppointments.map(date => {
-                const { stringDate, time } = parseDateToString(date)
-                return `${stringDate} ${time}`
-            })
+            const newAvailableAppointments = service.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+            const newScheduledAppointments = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
 
             return {
                 ...service,

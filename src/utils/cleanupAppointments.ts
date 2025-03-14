@@ -1,23 +1,23 @@
 import cron from "node-cron"
-import moment from "moment"
+import moment from "moment-timezone"
 import AppointmentModel from "../models/Appointment"
 import ServiceModel from "../models/Service"
 
 export const deleteOldAppointments = async () => {
     try {
-        const yesterday = moment().subtract(1, "days").format("YYYY-MM-DD")
-        console.log(`🗑️  Eliminando turnos anteriores a ${yesterday}...`)
+        const today = moment().tz("America/Argentina/Buenos_Aires").format("YYYY-MM-DD");
+        console.log(`🗑️  Eliminando turnos anteriores a ${today}...`)
 
         const resultScheduledAppointemnts = await AppointmentModel.deleteMany({
-            date: { $regex: `^${yesterday}` }
+            date: { $lt: today }
         })
         const resultAvailableAppointemnts = await ServiceModel.updateMany(
-            { availableAppointments: { $regex: `^${yesterday}` } },
-            { $pull: { availableAppointments: { $regex: `^${yesterday}` } } }
+            { availableAppointments: { $lt: today } },
+            { $pull: { availableAppointments: { $lt: today } } }
         )
         await ServiceModel.updateMany(
-            { scheduledAppointments: { $regex: `^${yesterday}` } },
-            { $pull: { scheduledAppointments: { $regex: `^${yesterday}` } } }
+            { scheduledAppointments: { $lt: today } },
+            { $pull: { scheduledAppointments: { $lt: today } } }
         )
 
         console.log(`🗑️  ${resultScheduledAppointemnts.deletedCount} turnos agendados eliminados.`)
@@ -29,7 +29,7 @@ export const deleteOldAppointments = async () => {
 }
 
 export const startCleanupAppointments = () => {
-    cron.schedule("0 0 * * *", async () => {
+    cron.schedule("05 18 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
     })

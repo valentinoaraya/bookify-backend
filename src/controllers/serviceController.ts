@@ -6,7 +6,6 @@ import UserModel from "../models/User";
 import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
 import { generateAppointments } from "../utils/generateAppointments";
 import moment from "moment-timezone";
-import { parseDateToString } from "../utils/parseDateToString";
 
 // Empresa crea un nuevo servicio
 export const createService = async (req: Request, res: Response) => {
@@ -131,10 +130,7 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
 
         if (!updatedService) return res.send({ error: "Servicio no encontrado." }).status(404)
 
-        const arrayAppointmentsInString = updatedService.availableAppointments.map(date => {
-            const { stringDate, time } = parseDateToString(date)
-            return `${stringDate} ${time}`
-        })
+        const arrayAppointmentsInString = updatedService.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
 
         res.send({ data: arrayAppointmentsInString }).status(200)
 
@@ -167,14 +163,8 @@ export const searchServices = async (req: Request, res: Response): Promise<void 
                 }).lean()
 
             const companyServicesWithDateInStrings = companyServices.map(service => {
-                const availableAppointmentsString = service.availableAppointments.map(date => {
-                    const { stringDate, time } = parseDateToString(date)
-                    return `${stringDate} ${time}`
-                })
-                const scheduledAppointmentsString = service.scheduledAppointments.map(date => {
-                    const { stringDate, time } = parseDateToString(date)
-                    return `${stringDate} ${time}`
-                })
+                const availableAppointmentsString = service.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+                const scheduledAppointmentsString = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
 
                 return {
                     ...service,
@@ -187,14 +177,8 @@ export const searchServices = async (req: Request, res: Response): Promise<void 
         }
 
         const servicesWithDateInStrings = services.map(service => {
-            const availableAppointmentsString = service.availableAppointments.map(date => {
-                const { stringDate, time } = parseDateToString(date)
-                return `${stringDate} ${time}`
-            })
-            const scheduledAppointmentsString = service.scheduledAppointments.map(date => {
-                const { stringDate, time } = parseDateToString(date)
-                return `${stringDate} ${time}`
-            })
+            const availableAppointmentsString = service.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+            const scheduledAppointmentsString = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
 
             return {
                 ...service,
