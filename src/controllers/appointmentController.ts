@@ -146,9 +146,18 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
         if (!req.user) return res.send({ error: "Usuario no encontrado." }).status(500)
 
         const { id } = req.params
-        const appointment = await AppointmentModel.findByIdAndDelete(id).lean()
+        const appointment = await AppointmentModel.findById(id).lean()
 
         if (!appointment) return res.send({ error: "No se encontró el turno." }).status(400)
+
+        const now = moment()
+        const appointmentDate = moment(appointment.date)
+
+        const diffHours = appointmentDate.diff(now, 'hours')
+
+        if (diffHours < 24) return res.send({ error: "No es posible cancelar el turno con menos de un día de anticipación." }).status(400)
+
+        await AppointmentModel.findByIdAndDelete(id)
 
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
