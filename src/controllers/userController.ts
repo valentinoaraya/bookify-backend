@@ -58,6 +58,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         const token = createToken({
             id: newUser.id,
             name: newUser.name,
+            lastName: newUser.lastName,
             email: newUser.email as Email,
         })
 

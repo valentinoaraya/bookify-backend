@@ -29,7 +29,7 @@ export const deleteOldAppointments = async () => {
 }
 
 export const startCleanupAppointments = () => {
-    cron.schedule("05 18 * * *", async () => {
+    cron.schedule("0 0 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
     })

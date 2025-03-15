@@ -8,7 +8,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         if (!req.user) return res.send({ error: "Usuario no autorizado." })
 
         // 1. Obtengo los datos necesarios
-        const { name, email } = req.user
+        const { name, lastName, email } = req.user
         const { empresaId } = req.params
         const { serviceId, title, price, date } = req.body
 
@@ -24,11 +24,14 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                     title: title as string,
                     unit_price: price,
                     quantity: 1,
-                    currency_id: "ARS"
+                    currency_id: "ARS",
+                    description: "Seña para un turno.",
+                    category_id: serviceId
                 }
             ],
             payer: {
                 name: name,
+                last_name: lastName,
                 email: email
             },
             back_urls: {
@@ -37,7 +40,8 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 pending: "https://bookify-aedes.vercel.app/user-panel"
             },
             auto_return: "approved",
-            external_reference: `${req.user.id}_${empresaId}_${serviceId}_${date}`
+            external_reference: `${req.user.id}_${empresaId}_${serviceId}_${date}`,
+            statement_descriptor: "BOOKIFY TURNOS"
         }
 
         // 3. Creo la preferencia con el access_token de la empresa
