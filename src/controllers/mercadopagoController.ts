@@ -31,8 +31,8 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
             ],
             payer: {
                 name: name.split(' ')[0],
+                email: email,
                 last_name: name.split(' ')[1],
-                email: email
             },
             back_urls: {
                 success: "https://bookify-aedes.vercel.app/user-panel",

@@ -100,7 +100,6 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
         if (type === "payment" && action === "payment.created") {
 
             const paymentId = data.id
-            console.log(paymentId)
             const company = await CompanyModel.findOne({ mp_user_id: user_id })
 
             if (!company) {
