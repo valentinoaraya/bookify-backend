@@ -8,7 +8,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         if (!req.user) return res.send({ error: "Usuario no autorizado." })
 
         // 1. Obtengo los datos necesarios
-        const { name, lastName, email } = req.user
+        const { name, email } = req.user
         const { empresaId } = req.params
         const { serviceId, title, price, date } = req.body
 
@@ -30,8 +30,8 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 }
             ],
             payer: {
-                name: name,
-                last_name: lastName,
+                name: name.split(' ')[0],
+                last_name: name.split(' ')[1],
                 email: email
             },
             back_urls: {

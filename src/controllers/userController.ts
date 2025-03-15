@@ -50,15 +50,14 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     try {
         const user = await userToAdd(req.body)
         const newUser = new UserModel(user)
-        const userFound = await UserModel.findOne({ username: user.email })
+        const userFound = await UserModel.findOne({ email: user.email })
 
         if (userFound) throw new Error("Ya existe una cuenta con este email.")
 
         await newUser.save()
         const token = createToken({
             id: newUser.id,
-            name: newUser.name,
-            lastName: newUser.lastName,
+            name: `${newUser.name} ${newUser.lastName}`,
             email: newUser.email as Email,
         })
 

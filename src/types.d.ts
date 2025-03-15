@@ -5,7 +5,6 @@ export type Email = `${string}@${string}`
 
 export interface BasicInfo {
     name: string
-    lastName?: string
     email: Email
 }
 
