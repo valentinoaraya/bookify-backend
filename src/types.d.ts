@@ -55,6 +55,7 @@ export interface UserInputAppointment {
     date: Date
     serviceId: string
     companyId: string
+    paymentId?: string
 }
 
 export interface PopulatedAppointment {

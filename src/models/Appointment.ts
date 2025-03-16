@@ -5,7 +5,7 @@ const AppointmentSchema = new Schema({
     serviceId: { type: mongoose.Schema.Types.ObjectId, ref: "Service", required: true },
     clientId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
     date: { type: Date, required: true },
-    status: { type: String, default: "reserved" },
+    paymentId: { type: String },
     createdAt: { type: Date, default: Date.now },
     updateAt: { type: Date, default: Date.now }
 })

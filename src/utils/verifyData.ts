@@ -174,7 +174,8 @@ export const appointmentToAdd = (object: any): UserInputAppointment => {
     const newAppointment: UserInputAppointment = {
         date: parseDate(object.date),
         serviceId: parseInput(object.serviceId, "ID de Servicio"),
-        companyId: parseInput(object.companyId, "ID de Empresa")
+        companyId: parseInput(object.companyId, "ID de Empresa"),
+        paymentId: object.paymentId ? object.paymentId : null
     }
 
     return newAppointment

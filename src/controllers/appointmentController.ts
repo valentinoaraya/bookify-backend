@@ -8,7 +8,7 @@ import CompanyModel from "../models/Company";
 import { sendEmail } from "../services/emailService";
 import moment from "moment-timezone";
 
-const createAppointment = async (companyId: string, serviceId: string, date: Date, userId: string,) => {
+const createAppointment = async (companyId: string, serviceId: string, date: Date, userId: string, paymentId?: string) => {
     try {
         const service = await ServiceModel.findById(serviceId)
         const user = await UserModel.findById(userId)
@@ -16,7 +16,7 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 
         if (!user || !company || !service) throw new Error("Error al obtener empresa, servicio o usuario.")
 
-        const appointment = appointmentToAdd({ companyId, serviceId, date })
+        const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId })
         const newAppointment = new AppointmentModel({ clientId: userId, ...appointment })
         const savedAppointment = await newAppointment.save()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -126,7 +126,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
 
                 const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
 
-                await createAppointment(companyId, serviceId, newDate.toDate(), userId)
+                await createAppointment(companyId, serviceId, newDate.toDate(), userId, paymentId)
 
                 return res.send({ data: "Pago procesado y turno confirmado." }).status(200)
             }

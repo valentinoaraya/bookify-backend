@@ -5,19 +5,21 @@ import ServiceModel from "../models/Service"
 
 export const deleteOldAppointments = async () => {
     try {
-        const today = moment().tz("America/Argentina/Buenos_Aires").format("YYYY-MM-DD");
-        console.log(`🗑️  Eliminando turnos anteriores a ${today}...`)
+        const todayString = moment().tz("America/Argentina/Buenos_Aires").format("YYYY-MM-DD");
+        console.log(`🗑️  Eliminando turnos anteriores a ${todayString}...`)
+
+        const todayDate = moment.tz(todayString, "YYYY-MM-DD", 'America/Argentina/Buenos_Aires').toDate()
 
         const resultScheduledAppointemnts = await AppointmentModel.deleteMany({
-            date: { $lt: today }
+            date: { $lt: todayDate }
         })
         const resultAvailableAppointemnts = await ServiceModel.updateMany(
-            { availableAppointments: { $lt: today } },
-            { $pull: { availableAppointments: { $lt: today } } }
+            { availableAppointments: { $lt: todayDate } },
+            { $pull: { availableAppointments: { $lt: todayDate } } }
         )
         await ServiceModel.updateMany(
-            { scheduledAppointments: { $lt: today } },
-            { $pull: { scheduledAppointments: { $lt: today } } }
+            { scheduledAppointments: { $lt: todayDate } },
+            { $pull: { scheduledAppointments: { $lt: todayDate } } }
         )
 
         console.log(`🗑️  ${resultScheduledAppointemnts.deletedCount} turnos agendados eliminados.`)
