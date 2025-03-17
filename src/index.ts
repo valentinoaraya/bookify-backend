@@ -6,7 +6,7 @@ import userRouter from "./routes/user.routes"
 import cors from "cors"
 import servicesRouter from "./routes/services.routes"
 import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
-import { startCronJobs } from "./services/emailService"
+import { startSendReminders } from "./utils/sendAppointmentReminders"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
 import mercadopagoRouter from "./routes/mercadopago.routes"
 
@@ -26,7 +26,7 @@ mongoose.connect(MONGOOSE_URL as string)
         console.log("Failed to connect to MongoDB Atlas ", error)
     })
 
-startCronJobs()
+startSendReminders()
 startCleanupAppointments()
 
 app.use("/appointments", appointmentsRouter)

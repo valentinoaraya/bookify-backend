@@ -5,12 +5,12 @@ import ServiceModel from "../models/Service"
 import CompanyModel from "../models/Company"
 import UserModel from "../models/User"
 
-export const deleteOldAppointments = async () => {
+const deleteOldAppointments = async () => {
     try {
         const todayString = moment().tz("America/Argentina/Buenos_Aires").format("YYYY-MM-DD");
         console.log(`🗑️  Eliminando turnos anteriores a ${todayString}...`)
 
-        const todayDate = moment.tz(todayString, "YYYY-MM-DD", 'America/Argentina/Buenos_Aires').add(1, 'day').toDate()
+        const todayDate = moment.tz(todayString, "YYYY-MM-DD", 'America/Argentina/Buenos_Aires').toDate()
 
         const results = await AppointmentModel.find({
             date: { $lt: todayDate }
@@ -50,7 +50,7 @@ export const deleteOldAppointments = async () => {
 }
 
 export const startCleanupAppointments = () => {
-    cron.schedule("40 17 * * *", async () => {
+    cron.schedule("0 0 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
     })
