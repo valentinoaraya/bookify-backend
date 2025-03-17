@@ -7,6 +7,7 @@ import UserModel from "../models/User";
 import CompanyModel from "../models/Company";
 import { sendEmail } from "../services/emailService";
 import moment from "moment-timezone";
+import { generateRandomId } from "../utils/generateRandomId";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, userId: string, paymentId?: string) => {
     try {
@@ -141,6 +142,38 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
     }
 }
 
+const refund = async (paymentId: string, accessToken: string, amount?: number) => {
+    try {
+
+        const randomId = generateRandomId()
+
+        const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}/refunds`, {
+            method: "POST",
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'X-Idempotency-Key': randomId,
+                'Content-Type': 'application/json'
+            },
+            body: amount ? JSON.stringify({ amount }) : null
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+            console.error("Error al procesar el reembolso: ", data)
+            return null
+        }
+
+        console.log("Devolución completa.")
+
+        return data
+
+    } catch (error: any) {
+        console.error('Error en refund: ', error)
+        return null
+    }
+}
+
 export const cancelAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         if (!req.user) return res.send({ error: "Usuario no encontrado." }).status(500)
@@ -156,6 +189,21 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
         const diffHours = appointmentDate.diff(now, 'hours')
 
         if (diffHours < 24) return res.send({ error: "No es posible cancelar el turno con menos de un día de anticipación." }).status(400)
+
+        const serviceAppointment = await ServiceModel.findById(appointment.serviceId)
+
+        if (!serviceAppointment) return res.send({ error: "Servicio no encontrado." }).status(400)
+
+        if (serviceAppointment.signPrice > 0) {
+            const company = await CompanyModel.findById(appointment.companyId)
+            if (!company) return res.send({ error: "Empresa no encontrada." }).status(400)
+
+            const amount = serviceAppointment.signPrice * 0.5
+
+            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token, amount)
+
+            if (!refundResponse) return res.send({ error: "No se pudo procesar la devolución." }).status(400)
+        }
 
         await AppointmentModel.findByIdAndDelete(id)
 
@@ -208,6 +256,17 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
         const appointment = await AppointmentModel.findByIdAndDelete(id).lean()
 
         if (!appointment) return res.send({ error: "No se encontró el turno." }).status(400)
+
+        const serviceAppointment = await ServiceModel.findById(appointment.serviceId)
+
+        if (!serviceAppointment) return res.send({ error: "Servicio no encontrado." }).status(400)
+
+        if (serviceAppointment.signPrice > 0) {
+            const company = await CompanyModel.findById(appointment.companyId)
+            if (!company) return res.send({ error: "Empresa no encontrada." }).status(400)
+            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
+            if (!refundResponse) return res.send({ error: "No se pudo procesar la devolución." }).status(400)
+        }
 
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 

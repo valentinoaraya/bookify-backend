@@ -10,9 +10,17 @@ export const deleteOldAppointments = async () => {
 
         const todayDate = moment.tz(todayString, "YYYY-MM-DD", 'America/Argentina/Buenos_Aires').toDate()
 
+        const results = await AppointmentModel.find({
+            date: { $lt: todayDate }
+        })
+
+        // Array de turnos que se van a eliminar
+        console.log(results)
+
         const resultScheduledAppointemnts = await AppointmentModel.deleteMany({
             date: { $lt: todayDate }
         })
+
         const resultAvailableAppointemnts = await ServiceModel.updateMany(
             { availableAppointments: { $lt: todayDate } },
             { $pull: { availableAppointments: { $lt: todayDate } } }
@@ -31,7 +39,7 @@ export const deleteOldAppointments = async () => {
 }
 
 export const startCleanupAppointments = () => {
-    cron.schedule("0 0 * * *", async () => {
+    cron.schedule("40 10 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
     })
