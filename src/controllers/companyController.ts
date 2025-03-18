@@ -3,10 +3,16 @@ import CompanyModel from "../models/Company";
 import { createToken, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
 import { type PopulatedAppointment, type Email, type ServiceWithAppointments } from "../types";
 import moment from "moment-timezone";
+import { ADMIN_API_KEY } from "../config";
 
 // Registrar
 
-export const createCompany = async (req: Request, res: Response): Promise<void> => {
+export const createCompany = async (req: Request, res: Response): Promise<void | Response> => {
+
+    const apiKey = req.headers["admin-api-key"]
+
+    if (!apiKey || apiKey !== ADMIN_API_KEY) return res.send({ error: "No tienes permisos para realizar esta acción." }).status(401)
+
     try {
         const company = await companyToAdd(req.body)
         const newCompany = new CompanyModel(company)
