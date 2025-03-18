@@ -10,15 +10,15 @@ const verifyService = async (req: Request, res: Response, next: NextFunction): P
 
         const companyFromMongoDB = await CompanyModel.findById(company?.id)
 
-        if (!companyFromMongoDB) return res.send({ error: "Empresa no encontrada" }).status(400)
+        if (!companyFromMongoDB) return res.status(400).send({ error: "Empresa no encontrada" })
 
         const arrayServices = companyFromMongoDB.services.map(idService => idService.toString())
 
-        if (!arrayServices.includes(id)) return res.send({ error: "La empresa no contiene este servicio." })
+        if (!arrayServices.includes(id)) return res.status(404).send({ error: "La empresa no contiene este servicio." })
 
         next()
     } catch (error: any) {
-        return res.send({ error: error.message }).status(500)
+        return res.status(500).send({ error: error.message })
     }
 
 }

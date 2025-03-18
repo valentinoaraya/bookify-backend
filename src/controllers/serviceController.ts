@@ -21,9 +21,9 @@ export const createService = async (req: Request, res: Response) => {
             $push: { services: savedService._id }
         })
 
-        res.send({ data: savedService }).status(200)
+        res.status(200).send({ data: savedService })
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -37,12 +37,12 @@ export const editService = async (req: Request, res: Response): Promise<Response
             { new: true }
         )
 
-        if (!service) return res.send({ error: "Servicio no encontrado" }).status(404)
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado" })
 
-        res.send({ data: service }).status(200)
+        res.status(200).send({ data: service })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -52,7 +52,7 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
         const { id } = req.params
         const service = await ServiceModel.findByIdAndDelete(id)
 
-        if (!service) return res.send({ error: "Servicio no encontrado." }).status(404)
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
 
         await CompanyModel.findByIdAndUpdate(service.companyId, {
             $pull: { services: id }
@@ -72,14 +72,14 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
             );
         }
 
-        res.send({
+        res.status(200).send({
             data: "Servicio eliminado",
             serviceId: id,
             appointmentsToDelete: appointmentsToDelete.map(app => app._id)
-        }).status(200)
+        })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -106,12 +106,12 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
             $push: { availableAppointments: { $each: arrayAppointmentsInDate } }
         }, { new: true }).lean();
 
-        if (!updatedService) return res.send({ error: "Servicio no encontrado" }).status(404);
+        if (!updatedService) return res.status(404).send({ error: "Servicio no encontrado" });
 
-        res.send({ data: arrayAppointmentsInString }).status(200);
+        res.status(200).send({ data: arrayAppointmentsInString });
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -128,14 +128,14 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
             $pull: { availableAppointments: newDate.toDate() }
         }, { new: true }).lean()
 
-        if (!updatedService) return res.send({ error: "Servicio no encontrado." }).status(404)
+        if (!updatedService) return res.status(404).send({ error: "Servicio no encontrado." })
 
         const arrayAppointmentsInString = updatedService.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
 
-        res.send({ data: arrayAppointmentsInString }).status(200)
+        res.status(200).send({ data: arrayAppointmentsInString })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -143,7 +143,7 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
 export const searchServices = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { query } = req.query
-        if (!query) return res.send({ message: "Falta el parámetro de búsqueda." })
+        if (!query) return res.status(500).send({ message: "Falta el parámetro de búsqueda." })
 
         const services = await ServiceModel.find({ title: { $regex: query, $options: "i" } })
             .populate({
@@ -173,7 +173,7 @@ export const searchServices = async (req: Request, res: Response): Promise<void 
                 }
             })
 
-            return res.send({ data: companyServicesWithDateInStrings }).status(200);
+            return res.status(200).send({ data: companyServicesWithDateInStrings });
         }
 
         const servicesWithDateInStrings = services.map(service => {
@@ -187,10 +187,10 @@ export const searchServices = async (req: Request, res: Response): Promise<void 
             }
         })
 
-        res.send({ data: servicesWithDateInStrings }).status(200);
+        res.status(200).send({ data: servicesWithDateInStrings });
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 
 }

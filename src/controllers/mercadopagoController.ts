@@ -5,7 +5,7 @@ import CompanyModel from "../models/Company"
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
 
-        if (!req.user) return res.send({ error: "Usuario no autorizado." })
+        if (!req.user) return res.status(401).send({ error: "Usuario no autorizado." })
 
         // 1. Obtengo los datos necesarios
         const { name, email } = req.user
@@ -14,7 +14,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         const empresa = await CompanyModel.findById(empresaId)
 
-        if (!empresa || !empresa.mp_access_token) return res.send({ error: "La empresa no está vinculada con Mercado Pago" }).status(404)
+        if (!empresa || !empresa.mp_access_token) return res.status(404).send({ error: "La empresa no está vinculada con Mercado Pago" })
 
         // 2. Creo el body de la preferencia
         const body = {
@@ -57,10 +57,10 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         // 4. Leo respuesta de Mercado Pago
         const data = await response.json()
 
-        res.send({ init_point: data.init_point }).status(200)
+        res.status(200).send({ init_point: data.init_point })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -68,7 +68,7 @@ export const getAccessTokenClient = async (req: Request, res: Response): Promise
 
     const { code, state } = req.query
 
-    if (!code || !state) return res.send({ error: 'Falta code o state' }).status(400)
+    if (!code || !state) return res.status(400).send({ error: 'Falta code o state' })
 
     try {
 
@@ -96,11 +96,11 @@ export const getAccessTokenClient = async (req: Request, res: Response): Promise
         })
 
         console.log("Access Token obtenido.")
-        res.send({ data: "Success" }).status(200)
+        res.status(200).send({ data: "Success" })
 
     } catch (error: any) {
         console.error(error)
-        res.send({ error: "Failed to exchange code for token." }).status(500)
+        res.status(500).send({ error: "Failed to exchange code for token." })
     }
 }
 
@@ -110,16 +110,16 @@ export const generateOAuthURL = async (req: Request, res: Response): Promise<voi
 
         const empresa = await CompanyModel.findById(empresaId)
 
-        if (!empresa) return res.send({ error: "Empresa no encontrada." }).status(404)
+        if (!empresa) return res.status(404).send({ error: "Empresa no encontrada." })
 
-        if (!CLIENT_ID_MP || !REDIRECT_URL_MP) return res.send({ error: "No es posible generar la URL: Faltan parámetros." })
+        if (!CLIENT_ID_MP || !REDIRECT_URL_MP) return res.status(500).send({ error: "No es posible generar la URL: Faltan parámetros." })
 
         const authURL = `https://auth.mercadopago.com/authorization?client_id=${CLIENT_ID_MP}&response_type=code&platform_id=mp&state=${empresaId}&redirect_uri=${REDIRECT_URL_MP}`
 
-        res.send({ url: authURL }).status(200)
+        res.status(200).send({ url: authURL })
 
     } catch (error: any) {
         console.error(error.message)
-        res.send({ error: "Failed to generate OAuth Code." }).status(500)
+        res.status(500).send({ error: "Failed to generate OAuth Code." })
     }
 }

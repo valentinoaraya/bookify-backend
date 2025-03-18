@@ -18,7 +18,7 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
                 ]
             }).lean()
 
-        if (!newUser) return res.send({ error: "No se encontró usuario" }).status(400)
+        if (!newUser) return res.status(400).send({ error: "No se encontró usuario" })
 
         const newUserAppointments = newUser.appointments as unknown as PopulatedAppointment[]
 
@@ -27,7 +27,7 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
             return { ...appointment, date: dateInString }
         })
 
-        res.send({
+        res.status(200).send({
             data: {
                 type: "user",
                 _id: newUser._id,
@@ -37,10 +37,10 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
                 phone: newUser.phone,
                 appointments: userAppointmentsWithDateInString
             }
-        }).status(200)
+        })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -61,7 +61,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
             email: newUser.email as Email,
         })
 
-        res.send({
+        res.status(200).send({
             data: {
                 id: newUser.id,
                 name: newUser.name,
@@ -70,10 +70,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
                 access_token: token
             }
         })
-            .status(200)
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(400)
+        res.status(400).send({ error: error.message })
     }
 }
 
@@ -83,9 +82,9 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const user = await verifyToLoginUser(req.body)
         const token = createToken(user)
-        res.send({ data: { ...user, access_token: token } }).status(200)
+        res.status(200).send({ data: { ...user, access_token: token } })
     } catch (error: any) {
-        res.send({ error: error.message }).status(400)
+        res.status(400).send({ error: error.message })
     }
 }
 
@@ -101,7 +100,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void | Re
             { new: true }
         )
 
-        if (!updatedUser) return res.send({ error: "No se encontró usuario" }).status(400)
+        if (!updatedUser) return res.status(400).send({ error: "No se encontró usuario" })
 
         const fullData = {
             type: "user",
@@ -111,8 +110,8 @@ export const updateUser = async (req: Request, res: Response): Promise<void | Re
             phone: updatedUser.phone,
         }
 
-        res.send({ data: fullData }).status(200)
+        res.status(200).send({ data: fullData })
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }

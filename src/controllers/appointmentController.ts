@@ -77,19 +77,19 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 export const confirmAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
 
-        if (!req.user) return res.send({ error: "Usuario no encontrado." }).status(500)
+        if (!req.user) return res.status(500).send({ error: "Usuario no encontrado." })
         const idUser = req.user.id.toString()
         const { date, serviceId, companyId } = req.body
 
         const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
         const appointment = await createAppointment(companyId, serviceId, newDate.toDate(), idUser)
 
-        if (!appointment) return res.send({ error: "No se pudo crear el turno." }).status(500)
+        if (!appointment) return res.status(500).send({ error: "No se pudo crear el turno." })
 
-        res.send({ data: appointment }).status(200)
+        res.status(200).send({ data: appointment })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -104,7 +104,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
             const company = await CompanyModel.findOne({ mp_user_id: user_id })
 
             if (!company) {
-                return res.send({ error: "No se encontró la empresa." })
+                return res.status(500).send({ error: "No se encontró la empresa." })
             }
 
             const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
@@ -129,16 +129,16 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
 
                 await createAppointment(companyId, serviceId, newDate.toDate(), userId, paymentId)
 
-                return res.send({ data: "Pago procesado y turno confirmado." }).status(200)
+                return res.status(200).send({ data: "Pago procesado y turno confirmado." })
             }
 
-            return res.send({ error: "El pago no fué aprobado." }).status(200)
+            return res.status(200).send({ error: "El pago no fué aprobado." })
         }
 
-        res.send({ data: "Evento recibido pero no procesado." }).status(200)
+        res.status(200).send({ data: "Evento recibido pero no procesado." })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -176,33 +176,33 @@ const refund = async (paymentId: string, accessToken: string, amount?: number) =
 
 export const cancelAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-        if (!req.user) return res.send({ error: "Usuario no encontrado." }).status(500)
+        if (!req.user) return res.status(500).send({ error: "Usuario no encontrado." })
 
         const { id } = req.params
         const appointment = await AppointmentModel.findById(id).lean()
 
-        if (!appointment) return res.send({ error: "No se encontró el turno." }).status(400)
+        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
 
         const now = moment()
         const appointmentDate = moment(appointment.date)
 
         const diffHours = appointmentDate.diff(now, 'hours')
 
-        if (diffHours < 24) return res.send({ error: "No es posible cancelar el turno con menos de un día de anticipación." }).status(400)
+        if (diffHours < 24) return res.status(400).send({ error: "No es posible cancelar el turno con menos de un día de anticipación." })
 
         const serviceAppointment = await ServiceModel.findById(appointment.serviceId)
 
-        if (!serviceAppointment) return res.send({ error: "Servicio no encontrado." }).status(400)
+        if (!serviceAppointment) return res.status(400).send({ error: "Servicio no encontrado." })
 
         if (serviceAppointment.signPrice > 0) {
             const company = await CompanyModel.findById(appointment.companyId)
-            if (!company) return res.send({ error: "Empresa no encontrada." }).status(400)
+            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
 
             const amount = serviceAppointment.signPrice * 0.5
 
             const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token, amount)
 
-            if (!refundResponse) return res.send({ error: "No se pudo procesar la devolución." }).status(400)
+            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
         }
 
         await AppointmentModel.findByIdAndDelete(id)
@@ -220,7 +220,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             $pull: { scheduledAppointments: appointment._id }
         })
 
-        if (!service || !company) return res.send({ error: "Error al obtener empresa, servicio o usuario." }).status(500)
+        if (!service || !company) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
 
         const { htmlUser, textUser } = emailCancelAppointmentUser(
             company.name,
@@ -241,31 +241,31 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
         await sendEmail(req.user.email, "Turno cancelado", textUser, htmlUser)
         await sendEmail(company.email, "Un turno ha sido cancelado", textCompany, htmlCompany)
 
-        res.send({ data: { ...appointment, date: dateInString } }).status(200)
+        res.status(200).send({ data: { ...appointment, date: dateInString } })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
 export const deleteAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-        if (!req.company) return res.send({ error: "Empresa no encontrada." }).status(500)
+        if (!req.company) return res.status(500).send({ error: "Empresa no encontrada." })
 
         const { id } = req.params
         const appointment = await AppointmentModel.findByIdAndDelete(id).lean()
 
-        if (!appointment) return res.send({ error: "No se encontró el turno." }).status(400)
+        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
 
         const serviceAppointment = await ServiceModel.findById(appointment.serviceId)
 
-        if (!serviceAppointment) return res.send({ error: "Servicio no encontrado." }).status(400)
+        if (!serviceAppointment) return res.status(400).send({ error: "Servicio no encontrado." })
 
         if (serviceAppointment.signPrice > 0) {
             const company = await CompanyModel.findById(appointment.companyId)
-            if (!company) return res.send({ error: "Empresa no encontrada." }).status(400)
+            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
             const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
-            if (!refundResponse) return res.send({ error: "No se pudo procesar la devolución." }).status(400)
+            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
         }
 
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -281,7 +281,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             $pull: { scheduledAppointments: appointment._id }
         })
 
-        if (!service || !user) return res.send({ error: "Error al obtener empresa, servicio o usuario." }).status(500)
+        if (!service || !user) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
 
         const { htmlUser, textUser } = emailDeleteAppointmentUser(
             req.company.name,
@@ -302,10 +302,10 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
         await sendEmail(user.email, "Tu turno ha sido cancelado", textUser, htmlUser)
         await sendEmail(req.company.email, "Turno cancelado", textCompany, htmlCompany)
 
-        res.send({ data: { ...appointment, date: dateInString } }).status(200)
+        res.status(200).send({ data: { ...appointment, date: dateInString } })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 

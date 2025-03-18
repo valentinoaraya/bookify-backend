@@ -11,7 +11,7 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
 
     const apiKey = req.headers["admin-api-key"]
 
-    if (!apiKey || apiKey !== ADMIN_API_KEY) return res.send({ error: "No tienes permisos para realizar esta acción." }).status(401)
+    if (!apiKey || apiKey !== ADMIN_API_KEY) return res.status(401).send({ error: "No tienes permisos para realizar esta acción." })
 
     try {
         const company = await companyToAdd(req.body)
@@ -27,7 +27,7 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
             email: newCompany.email as Email
         })
 
-        res.send({
+        res.status(200).send({
             data: {
                 id: newCompany.id,
                 name: newCompany.name,
@@ -35,10 +35,10 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
                 access_token: token
             }
         })
-            .status(200)
+
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(400)
+        res.status(400).send({ error: error.message })
     }
 }
 
@@ -48,9 +48,9 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
     try {
         const company = await verifyToLoginCompany(req.body)
         const token = createToken(company)
-        res.send({ data: { ...company, access_token: token } }).status(200)
+        res.status(200).send({ data: { ...company, access_token: token } })
     } catch (error: any) {
-        res.send({ error: error.message }).status(400)
+        res.status(400).send({ error: error.message })
     }
 }
 
@@ -75,7 +75,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 ]
             }).lean()
 
-        if (!newCompany) return res.send({ error: "No se encontró empresa." }).status(400)
+        if (!newCompany) return res.status(400).send({ error: "No se encontró empresa." })
 
         const scheduledAppointmentsCompany = newCompany.scheduledAppointments as unknown as PopulatedAppointment[]
         const servicesCompany = newCompany.services as unknown as ServiceWithAppointments[]
@@ -96,7 +96,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
             }
         })
 
-        res.send({
+        res.status(200).send({
             data: {
                 type: "company",
                 _id: newCompany._id,
@@ -113,7 +113,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
         })
 
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
 
@@ -129,7 +129,7 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             { new: true }
         )
 
-        if (!updatedCompany) return res.send({ error: "No se encontró la empresa" }).status(400)
+        if (!updatedCompany) return res.status(400).send({ error: "No se encontró la empresa" })
 
         const fullData = {
             type: "company",
@@ -141,8 +141,8 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             number: updatedCompany.number
         }
 
-        res.send({ data: fullData }).status(200)
+        res.status(200).send({ data: fullData })
     } catch (error: any) {
-        res.send({ error: error.message }).status(500)
+        res.status(500).send({ error: error.message })
     }
 }
