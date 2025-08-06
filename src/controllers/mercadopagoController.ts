@@ -7,7 +7,6 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         if (!req.user) return res.status(401).send({ error: "Usuario no autorizado." })
 
-        // 1. Obtengo los datos necesarios
         const { name, email } = req.user
         const { empresaId } = req.params
         const { serviceId, title, price, date } = req.body
@@ -16,7 +15,6 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         if (!empresa || !empresa.mp_access_token) return res.status(404).send({ error: "La empresa no está vinculada con Mercado Pago" })
 
-        // 2. Creo el body de la preferencia
         const body = {
             items: [
                 {
@@ -44,7 +42,6 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
             statement_descriptor: "BOOKIFY TURNOS"
         }
 
-        // 3. Creo la preferencia con el access_token de la empresa
         const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
             method: "POST",
             headers: {
@@ -54,7 +51,6 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
             body: JSON.stringify(body)
         })
 
-        // 4. Leo respuesta de Mercado Pago
         const data = await response.json()
 
         res.status(200).send({ init_point: data.init_point })

@@ -7,7 +7,6 @@ import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
 import { generateAppointments } from "../utils/generateAppointments";
 import moment from "moment-timezone";
 
-// Empresa crea un nuevo servicio
 export const createService = async (req: Request, res: Response) => {
     try {
         const companyId = req.company?.id
@@ -27,7 +26,6 @@ export const createService = async (req: Request, res: Response) => {
     }
 }
 
-// Empresa edita un servicio
 export const editService = async (req: Request, res: Response): Promise<Response | void> => {
     try {
         const { id } = req.params
@@ -46,7 +44,6 @@ export const editService = async (req: Request, res: Response): Promise<Response
     }
 }
 
-// Empresa elimina un servicio
 export const deleteService = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { id } = req.params
@@ -83,8 +80,6 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
     }
 }
 
-// Empresa habilita turnos para un servicio
-
 export const enabledAppointments = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { id } = req.params
@@ -115,8 +110,6 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
     }
 }
 
-// Empresa eliminar un turno habilitado
-
 export const deleteEnabledAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { id } = req.params
@@ -139,7 +132,6 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
     }
 }
 
-// Usuario realiza una búsqueda de servicio o empresa
 export const searchServices = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { query } = req.query

@@ -22,6 +22,7 @@ interface InputsCommon extends BasicInfo {
 }
 
 export interface CompanyInputs extends InputsCommon {
+    company_id: string
     city: string
     street: string
     number: string

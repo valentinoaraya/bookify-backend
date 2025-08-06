@@ -44,8 +44,6 @@ export const getUser = async (req: Request, res: Response): Promise<void | Respo
     }
 }
 
-// Registrar
-
 export const createUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const user = await userToAdd(req.body)
@@ -76,8 +74,6 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     }
 }
 
-// Loguear
-
 export const loginUser = async (req: Request, res: Response): Promise<void> => {
     try {
         const user = await verifyToLoginUser(req.body)
@@ -87,8 +83,6 @@ export const loginUser = async (req: Request, res: Response): Promise<void> => {
         res.status(400).send({ error: error.message })
     }
 }
-
-// Actualizar
 
 export const updateUser = async (req: Request, res: Response): Promise<void | Response> => {
     try {

@@ -64,6 +64,7 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
 
     const newCompany: CompanyInputs = {
         name: parseInput(object.name, "Nombre"),
+        company_id: parseInput(object.company_id, "ID de empresa"),
         email: parseEmail(object.email),
         password: hashedPassword,
         phone: parseInput(object.phone, "Teléfono"),
@@ -189,6 +190,7 @@ export const companyToSend = async (id: string): Promise<CompanyWithoutPassword>
 
     const newCompany: CompanyWithoutPassword = {
         _id: company._id,
+        company_id: company.company_id,
         name: company.name,
         services: company.services,
         city: company.city,

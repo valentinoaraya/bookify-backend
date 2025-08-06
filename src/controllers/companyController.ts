@@ -5,8 +5,6 @@ import { type PopulatedAppointment, type Email, type ServiceWithAppointments } f
 import moment from "moment-timezone";
 import { ADMIN_API_KEY } from "../config";
 
-// Registrar
-
 export const createCompany = async (req: Request, res: Response): Promise<void | Response> => {
 
     const apiKey = req.headers["admin-api-key"]
@@ -42,8 +40,6 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
     }
 }
 
-// Loguear
-
 export const loginCompany = async (req: Request, res: Response): Promise<void> => {
     try {
         const company = await verifyToLoginCompany(req.body)
@@ -53,8 +49,6 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
         res.status(400).send({ error: error.message })
     }
 }
-
-// Obtener empresa
 
 export const getCompany = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -117,8 +111,6 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
     }
 }
 
-// Actualizar
-
 export const updateCompany = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const company = req.company
@@ -142,6 +134,34 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
         }
 
         res.status(200).send({ data: fullData })
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
+export const getCompanyToUser = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const companyId = req.params.company_id
+        const company = await CompanyModel.findOne({ company_id: companyId })
+            .populate("services")
+            .lean()
+
+        if (!company) return res.status(400).send({ error: "No se encontró la empresa" })
+
+        res.status(200).send({
+            data: {
+                type: "company",
+                _id: company._id,
+                name: company.name,
+                phone: company.phone,
+                email: company.email,
+                city: company.city,
+                street: company.street,
+                number: company.number,
+                services: company.services,
+                connectedWithMP: company.connectedWithMP
+            }
+        })
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }
