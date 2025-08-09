@@ -55,8 +55,6 @@ const parseDate = (dateFromRequest: any): Date => {
     return dateFromRequest
 }
 
-// Registrar
-
 export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
 
     const newPassword = await parsePassword(object.password)
@@ -91,8 +89,6 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
 
     return newUser
 }
-
-// Chequear datos para el logueo de empresas o usuarios
 
 export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithIDRole> => {
     const { email, password } = object
@@ -142,8 +138,6 @@ export const createToken = (data: BasicInfoWithID): string => {
     return token
 }
 
-// Servicios
-
 export const serviceToAdd = (object: any): Service => {
 
     const service: Service = {
@@ -159,17 +153,16 @@ export const serviceToAdd = (object: any): Service => {
 
 export const serviceToUpdate = (object: any) => {
 
-    const { title, description, price, duration } = object
+    const { title, description, price, duration, signPrice } = object
     const updateFields: any = {}
     if (title != undefined) updateFields.title = title
     if (description != undefined) updateFields.description = description
     if (price != undefined) updateFields.price = price
     if (duration != undefined) updateFields.duration = duration
+    if (signPrice != undefined) updateFields.signPrice = signPrice
 
     return updateFields
 }
-
-// Turnos
 
 export const appointmentToAdd = (object: any): UserInputAppointment => {
     const newAppointment: UserInputAppointment = {
@@ -181,8 +174,6 @@ export const appointmentToAdd = (object: any): UserInputAppointment => {
 
     return newAppointment
 }
-
-// Empresas
 
 export const companyToSend = async (id: string): Promise<CompanyWithoutPassword> => {
     const company = await CompanyModel.findById(id).populate("services", "_id description duration price title companyId")
