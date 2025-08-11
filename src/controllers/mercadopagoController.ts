@@ -32,9 +32,9 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 last_name: name.split(' ')[1],
             },
             back_urls: {
-                success: "https://bookify-aedes.vercel.app/user-panel",
-                failure: "https://bookify-aedes.vercel.app/user-panel",
-                pending: "https://bookify-aedes.vercel.app/user-panel"
+                success: "https://bookify-aedes.vercel.app/processingpayment",
+                failure: "https://bookify-aedes.vercel.app/processingpayment",
+                pending: "https://bookify-aedes.vercel.app/processingpayment"
             },
             auto_return: "approved",
             external_reference: `${empresaId}_${serviceId}_${date}_${name}_${lastName}_${email}_${dni}_${phone}`,
