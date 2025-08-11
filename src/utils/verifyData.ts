@@ -1,6 +1,5 @@
 import CompanyModel from "../models/Company";
-import UserModel from "../models/User";
-import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, CompanyWithoutPassword, Email, Service, UserInputAppointment, UserInputs } from "../types";
+import { BasicInfoWithID, CompanyInputs, CompanyWithoutPassword, Email, Service, UserData, UserInputAppointment, UserInputs } from "../types";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import { JWT_KEY } from "../config";
@@ -55,6 +54,16 @@ const parseDate = (dateFromRequest: any): Date => {
     return dateFromRequest
 }
 
+export const verifyUserInputs = (object: any): UserData => {
+    return {
+        name: parseInput(object.name, "name"),
+        lastName: parseInput(object.lastName, "lastName"),
+        dni: parseInput(object.dni, "dni"),
+        email: parseEmail(object.email),
+        phone: parseInput(object.phone, "phone")
+    }
+}
+
 export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
 
     const newPassword = await parsePassword(object.password)
@@ -88,28 +97,6 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
     }
 
     return newUser
-}
-
-export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithIDRole> => {
-    const { email, password } = object
-
-    const newEmail = parseEmail(email)
-    const newPassword = await parsePassword(password)
-
-    const userFound = await UserModel.findOne({ email: newEmail })
-
-    if (!userFound) throw new Error("Usuario no existente.")
-
-    const isValid = await bcrypt.compare(newPassword, userFound.password)
-
-    if (!isValid) throw new Error("Contraseña incorrecta.")
-
-    return {
-        id: userFound._id,
-        name: `${userFound.name} ${userFound.lastName}`,
-        email: userFound.email as Email,
-        rol: userFound.role
-    }
 }
 
 export const verifyToLoginCompany = async (object: any): Promise<BasicInfoWithID> => {

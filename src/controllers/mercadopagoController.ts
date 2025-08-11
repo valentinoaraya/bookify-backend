@@ -4,10 +4,9 @@ import CompanyModel from "../models/Company"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-
         if (!req.user) return res.status(401).send({ error: "Usuario no autorizado." })
 
-        const { name, email } = req.user
+        const { name, lastName, email, dni, phone } = req.user
         const { empresaId } = req.params
         const { serviceId, title, price, date } = req.body
 
@@ -38,7 +37,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 pending: "https://bookify-aedes.vercel.app/user-panel"
             },
             auto_return: "approved",
-            external_reference: `${req.user.id}_${empresaId}_${serviceId}_${date}`,
+            external_reference: `${empresaId}_${serviceId}_${date}_${name}_${lastName}_${email}_${dni}_${phone}`,
             statement_descriptor: "BOOKIFY TURNOS"
         }
 

@@ -61,11 +61,6 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 path: "scheduledAppointments",
                 populate: [
                     { path: "serviceId", model: "Service" },
-                    {
-                        path: "clientId",
-                        model: "User",
-                        select: "name lastName email phone"
-                    }
                 ]
             }).lean()
 

@@ -2,7 +2,6 @@ import express from "express"
 import mongoose from "mongoose"
 import appointmentsRouter from "./routes/appointments.routes"
 import companiesRouter from "./routes/companies.routes"
-import userRouter from "./routes/user.routes"
 import cors from "cors"
 import servicesRouter from "./routes/services.routes"
 import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
@@ -31,7 +30,6 @@ startCleanupAppointments()
 
 app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
-app.use("/users", userRouter)
 app.use("/services", servicesRouter)
 app.use("/mercadopago", mercadopagoRouter)
 

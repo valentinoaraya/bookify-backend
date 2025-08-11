@@ -32,9 +32,17 @@ export interface UserInputs extends InputsCommon {
     lastName: string
 }
 
+export interface UserData {
+    name: string
+    lastName: string
+    email: string
+    phone: string
+    dni: string
+}
+
 declare module "express-serve-static-core" {
     interface Request {
-        user?: BasicInfoWithIDRole
+        user?: UserData
         company?: BasicInfoWithID
     }
 }

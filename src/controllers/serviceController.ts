@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import ServiceModel from "../models/Service";
 import CompanyModel from "../models/Company";
 import AppointmentModel from "../models/Appointment";
-import UserModel from "../models/User";
 import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
 import { generateAppointments } from "../utils/generateAppointments";
 import moment from "moment-timezone";
@@ -63,10 +62,6 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
             await CompanyModel.findByIdAndUpdate(service.companyId, {
                 $pull: { scheduledAppointments: { $in: appointmentIds } }
             })
-            await UserModel.updateMany(
-                { appointments: { $in: appointmentIds } },
-                { $pull: { appointments: { $in: appointmentIds } } }
-            );
         }
 
         res.status(200).send({

@@ -1,6 +1,6 @@
 import jwt from "jsonwebtoken"
 import { Request, Response, NextFunction } from "express"
-import { BasicInfoWithID, BasicInfoWithIDRole } from "../types"
+import { BasicInfoWithID, UserData } from "../types"
 import { JWT_KEY } from "../config"
 
 export const authenticateTokenUser = (req: Request, res: Response, next: NextFunction): void | Response => {
@@ -10,7 +10,7 @@ export const authenticateTokenUser = (req: Request, res: Response, next: NextFun
 
     try {
         const decoded = jwt.verify(token, JWT_KEY as string)
-        req.user = decoded as BasicInfoWithIDRole
+        req.user = decoded as UserData
         next()
     } catch (error: any) {
         return res.status(401).send({ error: "Token inválido" })

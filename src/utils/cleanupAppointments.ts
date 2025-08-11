@@ -3,7 +3,6 @@ import moment from "moment-timezone"
 import AppointmentModel from "../models/Appointment"
 import ServiceModel from "../models/Service"
 import CompanyModel from "../models/Company"
-import UserModel from "../models/User"
 
 const deleteOldAppointments = async () => {
     try {
@@ -22,10 +21,6 @@ const deleteOldAppointments = async () => {
                 { scheduledAppointments: { $in: appointmentIds } },
                 { $pull: { scheduledAppointments: { $in: appointmentIds } } }
             )
-            await UserModel.updateMany(
-                { appointments: { $in: appointmentIds } },
-                { $pull: { appointments: { $in: appointmentIds } } }
-            );
         }
 
         const resultScheduledAppointemnts = await AppointmentModel.deleteMany({
