@@ -1,6 +1,5 @@
 import CompanyModel from "../models/Company";
-import UserModel from "../models/User";
-import { BasicInfoWithID, BasicInfoWithIDRole, CompanyInputs, CompanyWithoutPassword, Email, Service, UserInputAppointment, UserInputs } from "../types";
+import { BasicInfoWithID, CompanyInputs, CompanyWithoutPassword, Email, Service, UserData, UserInputAppointment, UserInputs } from "../types";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import { JWT_KEY } from "../config";
@@ -55,7 +54,15 @@ const parseDate = (dateFromRequest: any): Date => {
     return dateFromRequest
 }
 
-// Registrar
+export const verifyUserInputs = (object: any): UserData => {
+    return {
+        name: parseInput(object.name, "name"),
+        lastName: parseInput(object.lastName, "lastName"),
+        dni: parseInput(object.dni, "dni"),
+        email: parseEmail(object.email),
+        phone: parseInput(object.phone, "phone")
+    }
+}
 
 export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
 
@@ -64,6 +71,7 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
 
     const newCompany: CompanyInputs = {
         name: parseInput(object.name, "Nombre"),
+        company_id: parseInput(object.company_id, "ID de empresa"),
         email: parseEmail(object.email),
         password: hashedPassword,
         phone: parseInput(object.phone, "Teléfono"),
@@ -89,30 +97,6 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
     }
 
     return newUser
-}
-
-// Chequear datos para el logueo de empresas o usuarios
-
-export const verifyToLoginUser = async (object: any): Promise<BasicInfoWithIDRole> => {
-    const { email, password } = object
-
-    const newEmail = parseEmail(email)
-    const newPassword = await parsePassword(password)
-
-    const userFound = await UserModel.findOne({ email: newEmail })
-
-    if (!userFound) throw new Error("Usuario no existente.")
-
-    const isValid = await bcrypt.compare(newPassword, userFound.password)
-
-    if (!isValid) throw new Error("Contraseña incorrecta.")
-
-    return {
-        id: userFound._id,
-        name: `${userFound.name} ${userFound.lastName}`,
-        email: userFound.email as Email,
-        rol: userFound.role
-    }
 }
 
 export const verifyToLoginCompany = async (object: any): Promise<BasicInfoWithID> => {
@@ -141,8 +125,6 @@ export const createToken = (data: BasicInfoWithID): string => {
     return token
 }
 
-// Servicios
-
 export const serviceToAdd = (object: any): Service => {
 
     const service: Service = {
@@ -158,17 +140,16 @@ export const serviceToAdd = (object: any): Service => {
 
 export const serviceToUpdate = (object: any) => {
 
-    const { title, description, price, duration } = object
+    const { title, description, price, duration, signPrice } = object
     const updateFields: any = {}
     if (title != undefined) updateFields.title = title
     if (description != undefined) updateFields.description = description
     if (price != undefined) updateFields.price = price
     if (duration != undefined) updateFields.duration = duration
+    if (signPrice != undefined) updateFields.signPrice = signPrice
 
     return updateFields
 }
-
-// Turnos
 
 export const appointmentToAdd = (object: any): UserInputAppointment => {
     const newAppointment: UserInputAppointment = {
@@ -181,14 +162,13 @@ export const appointmentToAdd = (object: any): UserInputAppointment => {
     return newAppointment
 }
 
-// Empresas
-
 export const companyToSend = async (id: string): Promise<CompanyWithoutPassword> => {
     const company = await CompanyModel.findById(id).populate("services", "_id description duration price title companyId")
     if (!company) throw new Error("Empresa no existente.")
 
     const newCompany: CompanyWithoutPassword = {
         _id: company._id,
+        company_id: company.company_id,
         name: company.name,
         services: company.services,
         city: company.city,

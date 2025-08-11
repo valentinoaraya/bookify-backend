@@ -3,22 +3,21 @@ import { emailCancelAppointmentCompany, emailCancelAppointmentUser, emailConfirm
 import { appointmentToAdd } from "../utils/verifyData";
 import ServiceModel from "../models/Service";
 import AppointmentModel from "../models/Appointment";
-import UserModel from "../models/User";
 import CompanyModel from "../models/Company";
 import { sendEmail } from "../services/emailService";
 import moment from "moment-timezone";
 import { generateRandomId } from "../utils/generateRandomId";
+import { UserData } from "../types";
 
-const createAppointment = async (companyId: string, serviceId: string, date: Date, userId: string, paymentId?: string) => {
+const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string) => {
     try {
         const service = await ServiceModel.findById(serviceId)
-        const user = await UserModel.findById(userId)
         const company = await CompanyModel.findById(companyId)
 
-        if (!user || !company || !service) throw new Error("Error al obtener empresa, servicio o usuario.")
+        if (!company || !service) throw new Error("Error al obtener empresa, servicio o usuario.")
 
         const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId })
-        const newAppointment = new AppointmentModel({ clientId: userId, ...appointment })
+        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser })
         const savedAppointment = await newAppointment.save()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
@@ -26,15 +25,13 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
             $pull: { availableAppointments: appointment.date },
             $push: { scheduledAppointments: appointment.date }
         })
-        await UserModel.findByIdAndUpdate(userId, {
-            $push: { appointments: savedAppointment._id }
-        })
+
         await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $push: { scheduledAppointments: savedAppointment._id }
         })
 
         const { htmlUser, textUser } = emailConfirmAppointmentUser(
-            `${user.name} ${user.lastName}`,
+            `${dataUser.name} ${dataUser.lastName}`,
             service.title,
             company.name,
             `${company.street} ${company.number}, ${company.city}`,
@@ -45,12 +42,12 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
         const { htmlCompany, textCompany } = emailConfirmAppointmentCompany(
             company.name,
             service.title,
-            `${user.name} ${user.lastName}`,
+            `${dataUser.name} ${dataUser.lastName}`,
             dateInString.split(' ')[0],
             dateInString.split(' ')[1]
         )
 
-        await sendEmail(user.email, "Turno confirmado con éxito", textUser, htmlUser)
+        await sendEmail(dataUser.email, "Turno confirmado con éxito", textUser, htmlUser)
         await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
 
         return {
@@ -76,13 +73,11 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 
 export const confirmAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-
-        if (!req.user) return res.status(500).send({ error: "Usuario no encontrado." })
-        const idUser = req.user.id.toString()
-        const { date, serviceId, companyId } = req.body
+        const { date, serviceId, companyId } = req.body.dataAppointment
+        const userData = req.user
 
         const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
-        const appointment = await createAppointment(companyId, serviceId, newDate.toDate(), idUser)
+        const appointment = await createAppointment(companyId, serviceId, newDate.toDate(), userData as UserData)
 
         if (!appointment) return res.status(500).send({ error: "No se pudo crear el turno." })
 
@@ -120,14 +115,21 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
             if (paymentInfo.status === "approved") {
                 const paramsExternalReference = paymentInfo.external_reference.split("_")
 
-                const userId = paramsExternalReference[0]
-                const companyId = paramsExternalReference[1]
-                const serviceId = paramsExternalReference[2]
-                const date = paramsExternalReference[3]
+                const companyId = paramsExternalReference[0]
+                const serviceId = paramsExternalReference[1]
+                const date = paramsExternalReference[2]
+
+                const dataUser = {
+                    name: paramsExternalReference[3],
+                    lastName: paramsExternalReference[4],
+                    email: paramsExternalReference[5],
+                    dni: paramsExternalReference[6],
+                    phone: paramsExternalReference[7],
+                }
 
                 const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
 
-                await createAppointment(companyId, serviceId, newDate.toDate(), userId, paymentId)
+                await createAppointment(companyId, serviceId, newDate.toDate(), dataUser, paymentId)
 
                 return res.status(200).send({ data: "Pago procesado y turno confirmado." })
             }
@@ -213,9 +215,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             $pull: { scheduledAppointments: appointment.date },
             $push: { availableAppointments: appointment.date }
         })
-        await UserModel.findByIdAndUpdate(appointment.clientId, {
-            $pull: { appointments: appointment._id }
-        })
+
         const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $pull: { scheduledAppointments: appointment._id }
         })
@@ -274,18 +274,16 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             $pull: { scheduledAppointments: appointment.date },
             $push: { availableAppointments: appointment.date }
         })
-        const user = await UserModel.findByIdAndUpdate(appointment.clientId, {
-            $pull: { appointments: appointment._id }
-        })
+
         await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $pull: { scheduledAppointments: appointment._id }
         })
 
-        if (!service || !user) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
+        if (!service) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
 
         const { htmlUser, textUser } = emailDeleteAppointmentUser(
             req.company.name,
-            `${user.name} ${user.lastName}`,
+            `${req.user?.name} ${req.user?.lastName}`,
             service.title,
             dateInString.split(' ')[0],
             dateInString.split(' ')[1]
@@ -293,13 +291,13 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         const { htmlCompany, textCompany } = emailDeleteAppointmentCompany(
             req.company.name,
-            `${user.name} ${user.lastName}`,
+            `${req.user?.name} ${req.user?.lastName}`,
             service.title,
             dateInString.split(' ')[0],
             dateInString.split(' ')[1]
         )
 
-        await sendEmail(user.email, "Tu turno ha sido cancelado", textUser, htmlUser)
+        await sendEmail(req.user?.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
         await sendEmail(req.company.email, "Turno cancelado", textCompany, htmlCompany)
 
         res.status(200).send({ data: { ...appointment, date: dateInString } })

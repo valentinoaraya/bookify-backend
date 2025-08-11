@@ -22,6 +22,7 @@ interface InputsCommon extends BasicInfo {
 }
 
 export interface CompanyInputs extends InputsCommon {
+    company_id: string
     city: string
     street: string
     number: string
@@ -31,9 +32,17 @@ export interface UserInputs extends InputsCommon {
     lastName: string
 }
 
+export interface UserData {
+    name: string
+    lastName: string
+    email: string
+    phone: string
+    dni: string
+}
+
 declare module "express-serve-static-core" {
     interface Request {
-        user?: BasicInfoWithIDRole
+        user?: UserData
         company?: BasicInfoWithID
     }
 }
