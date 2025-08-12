@@ -1,12 +1,23 @@
-export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string) => {
+export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string, appointmentID: string) => {
+
+    const cancelUrl = `https://bookify-aedes.vercel.app/cancel/${appointmentID}`
+
     const htmlUser = `<h2>Turno confimado con éxito</h2>
     <p>Hola ${user.split(" ")[0]},</p> 
     <p>Te informamos que tu turno para <strong>${service}</strong> en <strong>${company}</strong> fue confirmado.</p>
-    <p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>`
+    <p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
+    <p>Si no puedes asistir, puedes cancelarlo haciendo clic en el siguiente botón:</p>
+    <p>
+      <a href="${cancelUrl}" 
+         style="display:inline-block;padding:10px 15px;background-color:#d9534f;color:white;text-decoration:none;border-radius:5px;">
+        Cancelar turno
+      </a>
+    </p>`
 
     const textUser = `Hola ${user.split(" ")[0]},\n 
     Te informamos que tu turno para ${service} en ${company} fue confirmado.\n
-    Se te espera en ${location} el día ${date} a las ${time} hs.`
+    Se te espera en ${location} el día ${date} a las ${time} hs.
+    Si no puedes asistir, cancélalo en el siguiente enlace: ${cancelUrl}`
 
     return { htmlUser, textUser }
 }
