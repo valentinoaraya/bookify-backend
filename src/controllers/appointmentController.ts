@@ -36,7 +36,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
             company.name,
             `${company.street} ${company.number}, ${company.city}`,
             dateInString.split(' ')[0],
-            dateInString.split(' ')[1]
+            dateInString.split(' ')[1],
+            newAppointment.id
         )
 
         const { htmlCompany, textCompany } = emailConfirmAppointmentCompany(
@@ -283,7 +284,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         const { htmlUser, textUser } = emailDeleteAppointmentUser(
             req.company.name,
-            `${req.user?.name} ${req.user?.lastName}`,
+            `${appointment.name} ${appointment.lastName}`,
             service.title,
             dateInString.split(' ')[0],
             dateInString.split(' ')[1]
@@ -291,13 +292,13 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         const { htmlCompany, textCompany } = emailDeleteAppointmentCompany(
             req.company.name,
-            `${req.user?.name} ${req.user?.lastName}`,
+            `${appointment.name} ${appointment.lastName}`,
             service.title,
             dateInString.split(' ')[0],
             dateInString.split(' ')[1]
         )
 
-        await sendEmail(req.user?.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
+        await sendEmail(appointment.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
         await sendEmail(req.company.email, "Turno cancelado", textCompany, htmlCompany)
 
         res.status(200).send({ data: { ...appointment, date: dateInString } })
@@ -307,3 +308,41 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
     }
 }
 
+export const getAppointment = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { id } = req.params
+        const appointment = await AppointmentModel.findById(id).lean()
+
+        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
+
+        const service = await ServiceModel.findById(appointment.serviceId)
+        const company = await CompanyModel.findById(appointment.companyId)
+
+        if (!service || !company) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
+
+        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+
+        return res.status(200).send({
+            data: {
+                ...appointment,
+                date: dateInString,
+                service: {
+                    title: service.title,
+                    duration: service.duration,
+                    price: service.price,
+                    signPrice: service.signPrice,
+                },
+                company: {
+                    name: company.name,
+                    city: company.city,
+                    street: company.street,
+                    number: company.number,
+                    phone: company.phone,
+                    email: company.email,
+                }
+            }
+        })
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
