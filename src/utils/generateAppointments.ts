@@ -1,14 +1,16 @@
 import moment from "moment";
+import { AvailableAppointment } from "../types";
 
 export const generateAppointments = (body: {
     hourStart: string,
     hourFinish: string,
     turnEach: string,
-    days: string[]
-}): string[] => {
-    const { hourStart, hourFinish, turnEach, days } = body;
+    days: string[],
+    capacityPerShift: number
+}): AvailableAppointment[] => {
+    const { hourStart, hourFinish, turnEach, days, capacityPerShift } = body;
     const turnEachMinutes = parseInt(turnEach, 10);
-    const availableAppointments: string[] = [];
+    const availableAppointments: AvailableAppointment[] = [];
     days.forEach((day) => {
         let currentTime = moment(day).set({
             hour: parseInt(hourStart.split(":")[0]),
@@ -20,7 +22,11 @@ export const generateAppointments = (body: {
         });
 
         while (currentTime.isBefore(endTime) || currentTime.isSame(endTime)) {
-            availableAppointments.push(currentTime.format("YYYY-MM-DD HH:mm"));
+            availableAppointments.push({
+                datetime: currentTime.format("YYYY-MM-DD HH:mm"),
+                capacity: capacityPerShift,
+                taken: 0
+            });
             currentTime.add(turnEachMinutes, "minutes");
         }
     });

@@ -28,15 +28,33 @@ export const createService = async (req: Request, res: Response) => {
 export const editService = async (req: Request, res: Response): Promise<Response | void> => {
     try {
         const { id } = req.params
+        const serviceBeforeUpdate = await ServiceModel.findById(id).lean()
+        if (!serviceBeforeUpdate) return res.status(404).send({ error: "Servicio no encontrado" })
         const fieldsToUpdate = serviceToUpdate(req.body)
+
+        if (serviceBeforeUpdate.capacityPerShift !== fieldsToUpdate.capacityPerShift) {
+            const newAvailableAppointments = serviceBeforeUpdate.availableAppointments.map(app => ({
+                ...app,
+                capacity: fieldsToUpdate.capacityPerShift,
+            }))
+
+            fieldsToUpdate.availableAppointments = newAvailableAppointments
+        }
+
         const service = await ServiceModel.findByIdAndUpdate(id,
             { $set: fieldsToUpdate },
             { new: true }
-        )
-
+        ).lean()
         if (!service) return res.status(404).send({ error: "Servicio no encontrado" })
 
-        res.status(200).send({ data: service })
+        const availableAppointmentsToSend = service.availableAppointments.map(appointment => {
+            return {
+                ...appointment,
+                datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            }
+        })
+
+        res.status(200).send({ data: { ...service, availableAppointments: availableAppointmentsToSend } })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
@@ -79,17 +97,24 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
     try {
         const { id } = req.params
         const { hourStart, hourFinish, turnEach, days } = req.body
+        const service = await ServiceModel.findById(id)
+
+        if (!service) return res.send({ error: "Servicio no encontrado" })
 
         const arrayAppointmentsInString = generateAppointments({
             hourStart,
             hourFinish,
             turnEach,
-            days
+            days,
+            capacityPerShift: service.capacityPerShift
         })
 
-        const arrayAppointmentsInDate = arrayAppointmentsInString.map(date => {
-            const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
-            return newDate.toDate()
+        const arrayAppointmentsInDate = arrayAppointmentsInString.map(appointment => {
+            const newDate = moment.tz(appointment.datetime, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
+            return {
+                ...appointment,
+                datetime: newDate.toDate(),
+            }
         })
 
         const updatedService = await ServiceModel.findByIdAndUpdate(id, {
@@ -113,71 +138,21 @@ export const deleteEnabledAppointment = async (req: Request, res: Response): Pro
         const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
 
         const updatedService = await ServiceModel.findByIdAndUpdate(id, {
-            $pull: { availableAppointments: newDate.toDate() }
+            $pull: { availableAppointments: { datetime: newDate.toDate() } }
         }, { new: true }).lean()
 
         if (!updatedService) return res.status(404).send({ error: "Servicio no encontrado." })
 
-        const arrayAppointmentsInString = updatedService.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+        const arrayAppointmentsInString = updatedService.availableAppointments.map(appointment => {
+            return {
+                ...appointment,
+                datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            }
+        })
 
         res.status(200).send({ data: arrayAppointmentsInString })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }
-}
-
-export const searchServices = async (req: Request, res: Response): Promise<void | Response> => {
-    try {
-        const { query } = req.query
-        if (!query) return res.status(500).send({ message: "Falta el parámetro de búsqueda." })
-
-        const services = await ServiceModel.find({ title: { $regex: query, $options: "i" } })
-            .populate({
-                path: "companyId",
-                model: "Company",
-                select: "name email city street number phone"
-            }).lean()
-
-        const company = await CompanyModel.findOne({ name: { $regex: query, $options: "i" } });
-
-        if (company) {
-            const companyServices = await ServiceModel.find({ companyId: company._id })
-                .populate({
-                    path: "companyId",
-                    model: "Company",
-                    select: "name email city street number phone"
-                }).lean()
-
-            const companyServicesWithDateInStrings = companyServices.map(service => {
-                const availableAppointmentsString = service.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
-                const scheduledAppointmentsString = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
-
-                return {
-                    ...service,
-                    availableAppointments: availableAppointmentsString,
-                    scheduledAppointments: scheduledAppointmentsString
-                }
-            })
-
-            return res.status(200).send({ data: companyServicesWithDateInStrings });
-        }
-
-        const servicesWithDateInStrings = services.map(service => {
-            const availableAppointmentsString = service.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
-            const scheduledAppointmentsString = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
-
-            return {
-                ...service,
-                availableAppointments: availableAppointmentsString,
-                scheduledAppointments: scheduledAppointmentsString
-            }
-        })
-
-        res.status(200).send({ data: servicesWithDateInStrings });
-
-    } catch (error: any) {
-        res.status(500).send({ error: error.message })
-    }
-
 }

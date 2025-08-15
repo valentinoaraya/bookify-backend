@@ -11,7 +11,7 @@ import { UserData } from "../types";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string) => {
     try {
-        const service = await ServiceModel.findById(serviceId)
+        const service = await ServiceModel.findById(serviceId).lean()
         const company = await CompanyModel.findById(companyId)
 
         if (!company || !service) throw new Error("Error al obtener empresa, servicio o usuario.")
@@ -21,10 +21,29 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
         const savedAppointment = await newAppointment.save()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
-        await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
-            $pull: { availableAppointments: appointment.date },
-            $push: { scheduledAppointments: appointment.date }
-        })
+        const appt = service.availableAppointments.find(a => a.datetime.getTime() === date.getTime())
+        if (!appt) throw new Error("Turno no encontrado.")
+
+        appt.taken = (appt.taken || 0) + 1
+
+        if (appt.taken >= appt.capacity) {
+            await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
+                $pull: { availableAppointments: { datetime: appointment.date } },
+                $push: { scheduledAppointments: appointment.date }
+            })
+        } else {
+            await ServiceModel.findOneAndUpdate(
+                {
+                    _id: appointment.serviceId,
+                    "availableAppointments.datetime": appointment.date
+                },
+                {
+                    $push: { scheduledAppointments: appointment.date },
+                    $inc: { "availableAppointments.$.taken": 1 }
+                },
+                { new: true }
+            );
+        }
 
         await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $push: { scheduledAppointments: savedAppointment._id }

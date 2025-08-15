@@ -126,11 +126,11 @@ export const createToken = (data: BasicInfoWithID): string => {
 }
 
 export const serviceToAdd = (object: any): Service => {
-
     const service: Service = {
         title: parseInput(object.title, "Titulo"),
         description: parseInput(object.description, "Descripción"),
         price: parseNumber(object.price, "Precio"),
+        capacityPerShift: parseNumber(object.capacityPerShift, "Capacidad de personas") <= 0 ? 1 : parseNumber(object.capacityPerShift, "Capacidad de personas"),
         duration: parseNumber(object.duration, "Duración"),
         signPrice: parseNumber(object.signPrice, "Precio de seña")
     }
@@ -139,12 +139,12 @@ export const serviceToAdd = (object: any): Service => {
 }
 
 export const serviceToUpdate = (object: any) => {
-
-    const { title, description, price, duration, signPrice } = object
+    const { title, description, price, duration, signPrice, capacityPerShift } = object
     const updateFields: any = {}
     if (title != undefined) updateFields.title = title
     if (description != undefined) updateFields.description = description
     if (price != undefined) updateFields.price = price
+    if (capacityPerShift != undefined && capacityPerShift > 0) updateFields.capacityPerShift = capacityPerShift
     if (duration != undefined) updateFields.duration = duration
     if (signPrice != undefined) updateFields.signPrice = signPrice
 

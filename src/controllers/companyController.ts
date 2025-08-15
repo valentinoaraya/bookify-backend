@@ -52,7 +52,6 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
 
 export const getCompany = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-
         const company = req.company
 
         const newCompany = await CompanyModel.findById(company?.id)
@@ -75,7 +74,12 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
         })
 
         const servicesCompanyWithDateInString = servicesCompany.map(service => {
-            const newAvailableAppointments = service.availableAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+            const newAvailableAppointments = service.availableAppointments.map(appointment => {
+                return {
+                    ...appointment,
+                    datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                }
+            })
             const newScheduledAppointments = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
 
             return {

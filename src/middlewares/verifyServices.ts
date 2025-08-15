@@ -3,7 +3,6 @@ import { NextFunction, Request, Response } from "express";
 import CompanyModel from "../models/Company";
 
 const verifyService = async (req: Request, res: Response, next: NextFunction): Promise<void | Response> => {
-
     try {
         const { id } = req.params
         const company = req.company
