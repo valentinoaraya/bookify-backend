@@ -8,6 +8,6 @@ companiesRouter.put("/update-company", authenticateTokenCompany, updateCompany)
 companiesRouter.post("/login", loginCompany)
 companiesRouter.post("/register", createCompany)
 companiesRouter.get("/get-company", authenticateTokenCompany, getCompany)
-companiesRouter.get("/company/:company_id", getCompanyToUser)
+companiesRouter.get("/company/:company_id",authenticateTokenCompany,getCompanyToUser)
 
 export default companiesRouter

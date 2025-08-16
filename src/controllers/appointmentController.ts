@@ -435,4 +435,76 @@ export const getAppointment = async (req: Request, res: Response): Promise<void 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }
+
 }
+
+export const getCompanyHistory = async (req: Request, res: Response): Promise<void | Response> => {
+    try{
+        
+        
+        const { companyId } = req.params;
+        const company = await CompanyModel.findById(companyId);
+
+        if(!company)return res.status(400).send({error: "Empresa no encontrada "})
+        
+        const cutoffDate = new Date()
+        cutoffDate.setHours(cutoffDate.getHours() - 24)
+        
+        const historicalAppointments = await AppointmentModel.find({
+            companyId: companyId,
+            date: { $lt: cutoffDate }
+        })
+        .populate('serviceId')
+        .populate('companyId')
+        .sort({ date: -1 }) 
+        .lean()
+
+        const formattedAppointments = (historicalAppointments as any[]).map(appointment => ({
+            _id: appointment._id,
+            name: appointment.name,
+            lastName: appointment.lastName,
+            email: appointment.email,
+            phone: appointment.phone,
+            dni: appointment.dni,
+            serviceId: {
+                _id: appointment.serviceId._id,
+                title: appointment.serviceId.title,
+                duration: appointment.serviceId.duration,
+                price: appointment.serviceId.price
+            },
+            companyId: {
+                _id: appointment.companyId._id,
+                name: appointment.companyId.name
+            },
+            date: appointment.date,
+            paymentId: appointment.paymentId,
+            // Determinar estado basado en la fecha y si se pagó
+            status: determineAppointmentStatus(appointment.date, appointment.paymentId),
+            price: appointment.serviceId.price || 0,
+            notes: "" 
+        }))
+
+        res.status(200).send({ data: formattedAppointments })
+
+
+    }
+    catch(error:any){res.status(500).send({error: error.message})}
+}
+
+const determineAppointmentStatus = (
+    appointmentDate: Date, 
+    paymentId?: string
+): "completed" | "cancelled" | "no-show" | "upcoming" => {
+    const now = new Date()
+    const appointmentTime = new Date(appointmentDate)
+
+    if (appointmentTime > now) {
+        return "upcoming" 
+    }
+
+    if (paymentId) {
+        return "completed" 
+    }
+    return "no-show"
+}
+
