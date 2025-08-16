@@ -33,12 +33,34 @@ export const editService = async (req: Request, res: Response): Promise<Response
         const fieldsToUpdate = serviceToUpdate(req.body)
 
         if (serviceBeforeUpdate.capacityPerShift !== fieldsToUpdate.capacityPerShift) {
-            const newAvailableAppointments = serviceBeforeUpdate.availableAppointments.map(app => ({
+            const availableAppointmentsUpdated = serviceBeforeUpdate.availableAppointments.map(app => ({
                 ...app,
                 capacity: fieldsToUpdate.capacityPerShift,
             }))
 
-            fieldsToUpdate.availableAppointments = newAvailableAppointments
+            if (serviceBeforeUpdate.capacityPerShift < fieldsToUpdate.capacityPerShift) {
+                const noAvailablesAppointments: Date[] = []
+                serviceBeforeUpdate.scheduledAppointments.forEach(date => {
+                    if (!availableAppointmentsUpdated.some(item => item.datetime.getTime() === date.getTime()) && !noAvailablesAppointments.some(d => d.getTime() === date.getTime())) {
+                        noAvailablesAppointments.push(date)
+                    }
+                })
+                const newAvailableAppointments = noAvailablesAppointments.map(date => {
+                    const count = serviceBeforeUpdate.scheduledAppointments.filter(d => d.getTime() === date.getTime()).length
+                    return {
+                        datetime: date,
+                        capacity: fieldsToUpdate.capacityPerShift,
+                        taken: count
+                    }
+                })
+
+                fieldsToUpdate.availableAppointments = [...availableAppointmentsUpdated, ...newAvailableAppointments]
+            }
+
+            if (serviceBeforeUpdate.capacityPerShift > fieldsToUpdate.capacityPerShift) {
+                const newAvailableAppointments = availableAppointmentsUpdated.filter(app => app.taken < fieldsToUpdate.capacityPerShift)
+                fieldsToUpdate.availableAppointments = newAvailableAppointments
+            }
         }
 
         const service = await ServiceModel.findByIdAndUpdate(id,
@@ -54,7 +76,9 @@ export const editService = async (req: Request, res: Response): Promise<Response
             }
         })
 
-        res.status(200).send({ data: { ...service, availableAppointments: availableAppointmentsToSend } })
+        const scheduledAppointmentsToSend = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+
+        res.status(200).send({ data: { ...service, availableAppointments: availableAppointmentsToSend, scheduledAppointments: scheduledAppointmentsToSend } })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
