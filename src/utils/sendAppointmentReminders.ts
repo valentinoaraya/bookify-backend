@@ -11,7 +11,6 @@ const sendAppointmentReminders = async () => {
         const appointments = await AppointmentModel.find(
             { date: { $gte: tomorrowStart, $lte: tomorrowEnd } }
         )
-            .populate<{ clientId: { email: string, name: string } }>("clientId", "email name")
             .populate<{ serviceId: { title: string } }>("serviceId", "title")
             .populate<{ companyId: { name: string } }>("companyId", "name")
 
@@ -23,16 +22,16 @@ const sendAppointmentReminders = async () => {
             const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
             await sendEmail(
-                appointment.clientId.email,
+                appointment.email,
                 "🔔 Recordatorio de tu turno",
 
-                `Hola ${appointment.clientId.name},\n
+                `Hola ${appointment.name},\n
                 \nTe recordamos que tienes un turno mañana en ${appointment.companyId.name} para ${appointment.serviceId.title}.\n
                 \nFecha: ${dateInString.split(' ')[0]} 
                 \nHora: ${dateInString.split(' ')[1]}\n
                 \n¡No olvides asistir!`,
 
-                `<p>Hola ${appointment.clientId.name},</p>
+                `<p>Hola ${appointment.name},</p>
                 <p>Te recordamos que tienes un turno mañana en <strong>${appointment.companyId.name}</strong> para <strong>${appointment.serviceId.title}</strong>.</p>
                 <p>Fecha: ${dateInString.split(' ')[0]}</p>
                 <p>Hora: ${dateInString.split(' ')[1]}</p>`

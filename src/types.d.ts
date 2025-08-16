@@ -49,6 +49,7 @@ declare module "express-serve-static-core" {
 
 export interface Service {
     title: string
+    capacityPerShift: number
     description: string
     price: number
     duration: number
@@ -56,7 +57,7 @@ export interface Service {
 }
 
 export interface ServiceWithAppointments extends Service {
-    availableAppointments: Date[]
+    availableAppointments: AvailableAppointment[]
     scheduledAppointments: Date[]
 }
 
@@ -81,4 +82,8 @@ export interface Company extends CompanyInputs {
 
 export type CompanyWithoutPassword = Omit<Company, "password">
 
-export type AvailableAppointment = `${number}/${number}/${number} ${number}:${number}`
+export interface AvailableAppointment {
+    datetime: string
+    capacity: number
+    taken: number
+}

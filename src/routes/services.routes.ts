@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { createService, deleteEnabledAppointment, deleteService, editService, enabledAppointments, searchServices } from "../controllers/serviceController";
-import { authenticateTokenCompany, authenticateTokenUser } from "../middlewares/verifyTokens";
+import { createService, deleteEnabledAppointment, deleteService, editService, enabledAppointments } from "../controllers/serviceController";
+import { authenticateTokenCompany } from "../middlewares/verifyTokens";
 import verifyService from "../middlewares/verifyServices";
 
 const servicesRouter = Router()
@@ -10,6 +10,5 @@ servicesRouter.put("/edit-service/:id", authenticateTokenCompany, verifyService,
 servicesRouter.delete("/delete-service/:id", authenticateTokenCompany, verifyService, deleteService)
 servicesRouter.post("/enable-appointments/:id", authenticateTokenCompany, verifyService, enabledAppointments)
 servicesRouter.delete("/delete-appointment/:id", authenticateTokenCompany, verifyService, deleteEnabledAppointment)
-servicesRouter.get("/search", authenticateTokenUser, searchServices)
 
 export default servicesRouter
