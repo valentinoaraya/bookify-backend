@@ -435,4 +435,126 @@ export const getAppointment = async (req: Request, res: Response): Promise<void 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }
+
 }
+
+export const getCompanyHistory = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { companyId } = req.params;
+        
+        const company = await CompanyModel.findById(companyId);
+
+        if (!company) {
+            return res.status(400).send({ error: "Empresa no encontrada" });
+        }
+        
+        const now = new Date();
+        
+        const historicalAppointments = await AppointmentModel.find({
+            companyId: companyId,
+            date: { $lt: now } 
+        })
+        .populate('serviceId')
+        .populate('companyId')
+        .sort({ date: -1 })
+        .lean();
+        
+        if (historicalAppointments.length === 0) {
+            return res.status(200).send({ 
+                data: [],
+                message: "No se encontraron citas históricas para esta empresa (todas las citas son futuras)"
+            });
+        }
+
+        const formattedAppointments = (historicalAppointments as any[]).map(appointment => {
+            if (!appointment.serviceId) {
+                return null;
+            }
+            
+            const appointmentDate = new Date(appointment.date);
+            const formattedDate = moment(appointmentDate).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm');
+            
+            return {
+                _id: appointment._id,
+                name: appointment.name,
+                lastName: appointment.lastName,
+                email: appointment.email,
+                phone: appointment.phone,
+                dni: appointment.dni,
+                serviceId: {
+                    _id: appointment.serviceId._id,
+                    title: appointment.serviceId.title,
+                    duration: appointment.serviceId.duration,
+                    price: appointment.serviceId.price
+                },
+                companyId: {
+                    _id: appointment.companyId._id,
+                    name: appointment.companyId.name
+                },
+                date: appointment.date,
+                formattedDate: formattedDate,
+                paymentId: appointment.paymentId,
+                status: determineAppointmentStatus(appointment.date, appointment.paymentId),
+                price: appointment.serviceId.price || 0,
+                notes: ""
+            };
+        }).filter(appointment => appointment !== null); // Filtrar citas nulas
+        
+        res.status(200).send({ 
+            data: formattedAppointments
+        });
+
+    } catch (error: any) {
+        res.status(500).send({ error: error.message });
+    }
+}
+
+const determineAppointmentStatus = (
+    appointmentDate: Date, 
+    paymentId?: string
+): "completed" | "cancelled" | "no-show" | "upcoming" => {
+    const now = new Date()
+    const appointmentTime = new Date(appointmentDate)
+
+    // Si la cita es futura
+    if (appointmentTime > now) {
+        return "upcoming" 
+    }
+
+    // Si la cita ya pasó y tiene paymentId, fue completada
+    if (paymentId) {
+        return "completed" 
+    }
+    
+    // Si la cita ya pasó pero no tiene paymentId, fue no-show
+    return "no-show"
+}
+
+export const testCompanyData = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { companyId } = req.params;
+
+        const company = await CompanyModel.findById(companyId);
+        const totalAppointments = await AppointmentModel.countDocuments({ companyId });
+        console.log('Total appointments for company:', totalAppointments);
+    
+        const appointmentsWithPopulate = await AppointmentModel.find({ companyId })
+            .populate('serviceId')
+            .populate('companyId')
+            .limit(5);
+        
+        const services = await ServiceModel.find({});
+        
+        res.status(200).send({
+            company: company ? { id: company._id, name: company.name } : null,
+            totalAppointments,
+            sampleAppointments: appointmentsWithPopulate.length,
+            totalServices: services.length,
+            message: 'Check console for detailed logs'
+        });
+        
+    } catch (error: any) {
+        res.status(500).send({ error: error.message });
+    }
+}
+
