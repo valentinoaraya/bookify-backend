@@ -277,11 +277,11 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
 
-        const serviceAppointment = await ServiceModel.findById(appointment.serviceId)
+        const service = await ServiceModel.findById(appointment.serviceId).lean()
 
-        if (!serviceAppointment) return res.status(400).send({ error: "Servicio no encontrado." })
+        if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
 
-        if (serviceAppointment.signPrice > 0) {
+        if (service.signPrice > 0) {
             const company = await CompanyModel.findById(appointment.companyId)
             if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
             const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
@@ -290,16 +290,68 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
-        const service = await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
-            $pull: { scheduledAppointments: appointment.date },
-            $push: { availableAppointments: appointment.date }
-        })
+        // 1. Debería quitar una fecha de ese turno de scheduledAppointments
+        // 2. Verificar si el turno está en availableAppointments
+        // 3. Si está en availableAppointments => Restar 1 a taken
+        // 4. Si no está en availableAppointments...
+        //    b. Verificar si al quitar esa fecha, estamos por debajo del capacityPerShift actual
+        //    c. si estamos por debajo -> Agregar el turno a availableAppointments...
+        //          {datetime: fecha del turno, capacityPerShift: actual, taken: cantidad de turnos en scheduledAppointments}
+        //    d. si estamos por arriba -> Mantener el turno en scheduledAppointments
+
+        const datesEqualToTheAppointment = service.scheduledAppointments.filter(d => d.getTime() === appointment.date.getTime())
+        if (datesEqualToTheAppointment.length === 0) throw new Error("Turno no encontrado en 'agendados'")
+        datesEqualToTheAppointment.pop()
+        const scheduledAppointments = service.scheduledAppointments.filter(d => d.getTime() !== appointment.date.getTime())
+        const newScheduledAppointments = [...scheduledAppointments, ...datesEqualToTheAppointment]
+
+        let serviceToSend
+
+        serviceToSend = await ServiceModel.findByIdAndUpdate(
+            appointment.serviceId,
+            {
+                $set: { scheduledAppointments: newScheduledAppointments }
+            },
+            { new: true }
+        ).lean()
+
+        if (service.availableAppointments.some(item => item.datetime.getTime() === appointment.date.getTime())) {
+            const appointmentToChange = service.availableAppointments.find(app => app.datetime.getTime() === appointment.date.getTime())
+            if (!appointmentToChange) throw new Error("No se encontró el turno")
+            const changedAppointment = { ...appointmentToChange, taken: appointmentToChange.taken - 1 }
+            const availableAppointmentsWithoutNoChangedAppointment = service.availableAppointments.filter(app => app.datetime.getTime() !== appointment.date.getTime())
+            const newAvailablesAppointments = [...availableAppointmentsWithoutNoChangedAppointment, changedAppointment]
+
+            serviceToSend = await ServiceModel.findByIdAndUpdate(
+                appointment.serviceId,
+                {
+                    $set: { availableAppointments: newAvailablesAppointments }
+                },
+                { new: true }
+            ).lean()
+        } else {
+            if (service.capacityPerShift > datesEqualToTheAppointment.length) {
+                const newAvailableAppointment = {
+                    datetime: appointment.date,
+                    capacity: service.capacityPerShift,
+                    taken: datesEqualToTheAppointment.length
+                }
+
+                const newAvailableAppointments = [...service.availableAppointments, newAvailableAppointment]
+
+                serviceToSend = await ServiceModel.findByIdAndUpdate(
+                    appointment.serviceId,
+                    {
+                        $set: { availableAppointments: newAvailableAppointments }
+                    },
+                    { new: true }
+                ).lean()
+            }
+        }
 
         await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $pull: { scheduledAppointments: appointment._id }
         })
-
-        if (!service) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
 
         const { htmlUser, textUser } = emailDeleteAppointmentUser(
             req.company.name,
@@ -320,7 +372,26 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
         await sendEmail(appointment.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
         await sendEmail(req.company.email, "Turno cancelado", textCompany, htmlCompany)
 
-        res.status(200).send({ data: { ...appointment, date: dateInString } })
+        const availableAppointmentsToSend = serviceToSend?.availableAppointments.map(appointment => {
+            return {
+                ...appointment,
+                datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            }
+        })
+
+        const scheduledAppointmentsToSend = serviceToSend?.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+
+
+        res.status(200).send({
+            data: {
+                appointment: { ...appointment, date: dateInString },
+                service: {
+                    ...serviceToSend,
+                    availableAppointments: availableAppointmentsToSend,
+                    scheduledAppointments: scheduledAppointmentsToSend
+                }
+            }
+        })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
