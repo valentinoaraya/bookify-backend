@@ -7,7 +7,7 @@ import CompanyModel from "../models/Company";
 import { sendEmail } from "../services/emailService";
 import moment from "moment-timezone";
 import { generateRandomId } from "../utils/generateRandomId";
-import { UserData } from "../types";
+import { ServiceWithAppointments, UserData, UserInputAppointment } from "../types";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string) => {
     try {
@@ -196,109 +196,8 @@ const refund = async (paymentId: string, accessToken: string, amount?: number) =
     }
 }
 
-export const cancelAppointment = async (req: Request, res: Response): Promise<void | Response> => {
+const removeFromScheduledAndEnable = async (service: ServiceWithAppointments, appointment: UserInputAppointment) => {
     try {
-        if (!req.user) return res.status(500).send({ error: "Usuario no encontrado." })
-
-        const { id } = req.params
-        const appointment = await AppointmentModel.findById(id).lean()
-
-        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
-
-        const now = moment()
-        const appointmentDate = moment(appointment.date)
-
-        const diffHours = appointmentDate.diff(now, 'hours')
-
-        if (diffHours < 24) return res.status(400).send({ error: "No es posible cancelar el turno con menos de un día de anticipación." })
-
-        const serviceAppointment = await ServiceModel.findById(appointment.serviceId)
-
-        if (!serviceAppointment) return res.status(400).send({ error: "Servicio no encontrado." })
-
-        if (serviceAppointment.signPrice > 0) {
-            const company = await CompanyModel.findById(appointment.companyId)
-            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
-
-            const amount = serviceAppointment.signPrice * 0.5
-
-            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token, amount)
-
-            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
-        }
-
-        await AppointmentModel.findByIdAndDelete(id)
-
-        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-
-        const service = await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
-            $pull: { scheduledAppointments: appointment.date },
-            $push: { availableAppointments: appointment.date }
-        })
-
-        const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
-            $pull: { scheduledAppointments: appointment._id }
-        })
-
-        if (!service || !company) return res.status(500).send({ error: "Error al obtener empresa, servicio o usuario." })
-
-        const { htmlUser, textUser } = emailCancelAppointmentUser(
-            company.name,
-            req.user.name,
-            service.title,
-            dateInString.split(' ')[0],
-            dateInString.split(' ')[1],
-        )
-
-        const { htmlCompany, textCompany } = emailCancelAppointmentCompany(
-            company.name,
-            req.user.name,
-            service.title,
-            dateInString.split(' ')[0],
-            dateInString.split(' ')[1],
-        )
-
-        await sendEmail(req.user.email, "Turno cancelado", textUser, htmlUser)
-        await sendEmail(company.email, "Un turno ha sido cancelado", textCompany, htmlCompany)
-
-        res.status(200).send({ data: { ...appointment, date: dateInString } })
-
-    } catch (error: any) {
-        res.status(500).send({ error: error.message })
-    }
-}
-
-export const deleteAppointment = async (req: Request, res: Response): Promise<void | Response> => {
-    try {
-        if (!req.company) return res.status(500).send({ error: "Empresa no encontrada." })
-
-        const { id } = req.params
-        const appointment = await AppointmentModel.findByIdAndDelete(id).lean()
-
-        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
-
-        const service = await ServiceModel.findById(appointment.serviceId).lean()
-
-        if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
-
-        if (service.signPrice > 0) {
-            const company = await CompanyModel.findById(appointment.companyId)
-            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
-            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
-            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
-        }
-
-        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-
-        // 1. Debería quitar una fecha de ese turno de scheduledAppointments
-        // 2. Verificar si el turno está en availableAppointments
-        // 3. Si está en availableAppointments => Restar 1 a taken
-        // 4. Si no está en availableAppointments...
-        //    b. Verificar si al quitar esa fecha, estamos por debajo del capacityPerShift actual
-        //    c. si estamos por debajo -> Agregar el turno a availableAppointments...
-        //          {datetime: fecha del turno, capacityPerShift: actual, taken: cantidad de turnos en scheduledAppointments}
-        //    d. si estamos por arriba -> Mantener el turno en scheduledAppointments
-
         const datesEqualToTheAppointment = service.scheduledAppointments.filter(d => d.getTime() === appointment.date.getTime())
         if (datesEqualToTheAppointment.length === 0) throw new Error("Turno no encontrado en 'agendados'")
         datesEqualToTheAppointment.pop()
@@ -349,9 +248,111 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             }
         }
 
+        return serviceToSend
+
+    } catch (error: any) {
+        throw new Error(error)
+    }
+}
+
+export const cancelAppointment = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        if (!req.user) return res.status(500).send({ error: "Usuario no encontrado." })
+
+        const { id } = req.params
+        const appointment = await AppointmentModel.findById(id).lean()
+
+        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
+
+        const now = moment()
+        const appointmentDate = moment(appointment.date)
+
+        const diffHours = appointmentDate.diff(now, 'hours')
+
+        if (diffHours < 24) return res.status(400).send({ error: "No es posible cancelar el turno con menos de un día de anticipación." })
+
+        const service = await ServiceModel.findById(appointment.serviceId).lean()
+
+        if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
+
+        if (service.signPrice > 0) {
+            const company = await CompanyModel.findById(appointment.companyId)
+            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
+
+            const amount = service.signPrice * 0.5
+
+            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token, amount)
+
+            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
+        }
+
+        await AppointmentModel.findByIdAndDelete(id)
+
+        const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
+
+        const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
+            $pull: { scheduledAppointments: appointment._id }
+        })
+
+        if (!company) return res.status(500).send({ error: "Error al obtener empresa." })
+
+        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+
+        const { htmlUser, textUser } = emailCancelAppointmentUser(
+            company.name,
+            req.user.name,
+            service.title,
+            dateInString.split(' ')[0],
+            dateInString.split(' ')[1],
+        )
+
+        const { htmlCompany, textCompany } = emailCancelAppointmentCompany(
+            company.name,
+            req.user.name,
+            service.title,
+            dateInString.split(' ')[0],
+            dateInString.split(' ')[1],
+        )
+
+        await sendEmail(req.user.email, "Turno cancelado", textUser, htmlUser)
+        await sendEmail(company.email, "Un turno ha sido cancelado", textCompany, htmlCompany)
+
+        res.status(200).send({ data: { serviceToSend } })
+
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
+export const deleteAppointment = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        if (!req.company) return res.status(500).send({ error: "Empresa no encontrada." })
+
+        const { id } = req.params
+        const appointment = await AppointmentModel.findById(id).lean()
+
+        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
+
+        const service = await ServiceModel.findById(appointment.serviceId).lean()
+
+        if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
+
+        if (service.signPrice > 0) {
+            const company = await CompanyModel.findById(appointment.companyId)
+            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
+            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
+            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
+        }
+
+        await AppointmentModel.findByIdAndDelete(id)
+
+        const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
+
         await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $pull: { scheduledAppointments: appointment._id }
         })
+
+        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
         const { htmlUser, textUser } = emailDeleteAppointmentUser(
             req.company.name,
@@ -441,26 +442,26 @@ export const getAppointment = async (req: Request, res: Response): Promise<void 
 export const getCompanyHistory = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { companyId } = req.params;
-        
+
         const company = await CompanyModel.findById(companyId);
 
         if (!company) {
             return res.status(400).send({ error: "Empresa no encontrada" });
         }
-        
+
         const now = new Date();
-        
+
         const historicalAppointments = await AppointmentModel.find({
             companyId: companyId,
-            date: { $lt: now } 
+            date: { $lt: now }
         })
-        .populate('serviceId')
-        .populate('companyId')
-        .sort({ date: -1 })
-        .lean();
-        
+            .populate('serviceId')
+            .populate('companyId')
+            .sort({ date: -1 })
+            .lean();
+
         if (historicalAppointments.length === 0) {
-            return res.status(200).send({ 
+            return res.status(200).send({
                 data: [],
                 message: "No se encontraron citas históricas para esta empresa (todas las citas son futuras)"
             });
@@ -470,10 +471,10 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
             if (!appointment.serviceId) {
                 return null;
             }
-            
+
             const appointmentDate = new Date(appointment.date);
             const formattedDate = moment(appointmentDate).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm');
-            
+
             return {
                 _id: appointment._id,
                 name: appointment.name,
@@ -499,8 +500,8 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 notes: ""
             };
         }).filter(appointment => appointment !== null); // Filtrar citas nulas
-        
-        res.status(200).send({ 
+
+        res.status(200).send({
             data: formattedAppointments
         });
 
@@ -510,23 +511,20 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
 }
 
 const determineAppointmentStatus = (
-    appointmentDate: Date, 
+    appointmentDate: Date,
     paymentId?: string
 ): "completed" | "cancelled" | "no-show" | "upcoming" => {
     const now = new Date()
     const appointmentTime = new Date(appointmentDate)
 
-    // Si la cita es futura
     if (appointmentTime > now) {
-        return "upcoming" 
+        return "upcoming"
     }
 
-    // Si la cita ya pasó y tiene paymentId, fue completada
     if (paymentId) {
-        return "completed" 
+        return "completed"
     }
-    
-    // Si la cita ya pasó pero no tiene paymentId, fue no-show
+
     return "no-show"
 }
 
@@ -537,14 +535,14 @@ export const testCompanyData = async (req: Request, res: Response): Promise<void
         const company = await CompanyModel.findById(companyId);
         const totalAppointments = await AppointmentModel.countDocuments({ companyId });
         console.log('Total appointments for company:', totalAppointments);
-    
+
         const appointmentsWithPopulate = await AppointmentModel.find({ companyId })
             .populate('serviceId')
             .populate('companyId')
             .limit(5);
-        
+
         const services = await ServiceModel.find({});
-        
+
         res.status(200).send({
             company: company ? { id: company._id, name: company.name } : null,
             totalAppointments,
@@ -552,7 +550,7 @@ export const testCompanyData = async (req: Request, res: Response): Promise<void
             totalServices: services.length,
             message: 'Check console for detailed logs'
         });
-        
+
     } catch (error: any) {
         res.status(500).send({ error: error.message });
     }

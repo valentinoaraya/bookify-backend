@@ -140,7 +140,6 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
 
 export const getCompanyToUser = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-        console.log("company running")
         const companyId = req.params.company_id
         const company = await CompanyModel.findOne({ company_id: companyId })
             .populate("services")
