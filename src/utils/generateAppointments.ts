@@ -1,5 +1,5 @@
 import moment from "moment";
-import { AvailableAppointment } from "../types";
+import { AvailableAppointmentInString } from "../types";
 
 export const generateAppointments = (body: {
     hourStart: string,
@@ -7,10 +7,10 @@ export const generateAppointments = (body: {
     turnEach: string,
     days: string[],
     capacityPerShift: number
-}): AvailableAppointment[] => {
+}): AvailableAppointmentInString[] => {
     const { hourStart, hourFinish, turnEach, days, capacityPerShift } = body;
     const turnEachMinutes = parseInt(turnEach, 10);
-    const availableAppointments: AvailableAppointment[] = [];
+    const availableAppointments: AvailableAppointmentInString[] = [];
     days.forEach((day) => {
         let currentTime = moment(day).set({
             hour: parseInt(hourStart.split(":")[0]),

@@ -83,6 +83,12 @@ export interface Company extends CompanyInputs {
 export type CompanyWithoutPassword = Omit<Company, "password">
 
 export interface AvailableAppointment {
+    datetime: Date
+    capacity: number
+    taken: number
+}
+
+export interface AvailableAppointmentInString {
     datetime: string
     capacity: number
     taken: number
