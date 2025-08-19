@@ -13,5 +13,7 @@ appointmentsRouter.post("/webhooks/confirm-appointment", confirmAppointmentWebho
 appointmentsRouter.get("/company-history/:companyId", getCompanyHistory)
 appointmentsRouter.get("/test-company-data/:companyId", testCompanyData)
 
+
+
 export default appointmentsRouter
 

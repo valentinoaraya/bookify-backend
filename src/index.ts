@@ -32,6 +32,7 @@ app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
 app.use("/services", servicesRouter)
 app.use("/mercadopago", mercadopagoRouter)
+app.use(express.json())
 
 app.listen(PORT, () => {
     console.log(`Server runing on port ${PORT}`)
