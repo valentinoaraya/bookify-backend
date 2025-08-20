@@ -2,6 +2,7 @@ import cron from "node-cron"
 import AppointmentModel from "../models/Appointment"
 import moment from "moment-timezone"
 import { sendEmail } from "../services/emailService"
+import { formatDate } from "./formatDate"
 
 const sendAppointmentReminders = async () => {
     try {
@@ -27,13 +28,13 @@ const sendAppointmentReminders = async () => {
 
                 `Hola ${appointment.name},\n
                 \nTe recordamos que tienes un turno mañana en ${appointment.companyId.name} para ${appointment.serviceId.title}.\n
-                \nFecha: ${dateInString.split(' ')[0]} 
+                \nFecha: ${formatDate(dateInString.split(' ')[0])} 
                 \nHora: ${dateInString.split(' ')[1]}\n
                 \n¡No olvides asistir!`,
 
                 `<p>Hola ${appointment.name},</p>
                 <p>Te recordamos que tienes un turno mañana en <strong>${appointment.companyId.name}</strong> para <strong>${appointment.serviceId.title}</strong>.</p>
-                <p>Fecha: ${dateInString.split(' ')[0]}</p>
+                <p>Fecha: ${formatDate(dateInString.split(' ')[0])}</p>
                 <p>Hora: ${dateInString.split(' ')[1]}</p>`
             )
         }

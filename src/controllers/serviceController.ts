@@ -5,6 +5,7 @@ import AppointmentModel from "../models/Appointment";
 import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
 import { generateAppointments } from "../utils/generateAppointments";
 import moment from "moment-timezone";
+import { AvailableAppointment, ServiceWithAppointments } from "../types";
 
 export const createService = async (req: Request, res: Response) => {
     try {
@@ -157,26 +158,108 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
 export const deleteEnabledAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { id } = req.params
-        const { date } = req.body
+        const { date, all } = req.body
 
-        const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
+        const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires').toDate()
 
-        const updatedService = await ServiceModel.findByIdAndUpdate(id, {
-            $pull: { availableAppointments: { datetime: newDate.toDate() } }
-        }, { new: true }).lean()
+        const service = await ServiceModel.findById(id).lean()
 
-        if (!updatedService) return res.status(404).send({ error: "Servicio no encontrado." })
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
 
-        const arrayAppointmentsInString = updatedService.availableAppointments.map(appointment => {
-            return {
-                ...appointment,
-                datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-            }
-        })
+        const appointmentToUpdate = service.availableAppointments.find(app => app.datetime.getTime() === newDate.getTime())
 
-        res.status(200).send({ data: arrayAppointmentsInString })
+        if (!appointmentToUpdate) return res.status(404).send({ error: "Turno no encontrado" })
+
+        const { action, updatedAppointments } = determineAppointmentAction(
+            appointmentToUpdate,
+            newDate,
+            service.availableAppointments,
+            all
+        )
+
+        let updatedService
+        if (action === "remove-from-calendar") {
+            updatedService = await ServiceModel.findByIdAndUpdate(id, {
+                $pull: { availableAppointments: { datetime: newDate } }
+            }, { new: true }).lean()
+            appointmentToUpdate.capacity -= 1
+        } else if (action === "remove-from-availables") {
+            updatedService = await ServiceModel.findByIdAndUpdate(id, {
+                $pull: { availableAppointments: { datetime: newDate } },
+            }, { new: true }).lean()
+            appointmentToUpdate.capacity -= 1
+        } else if (action === "remove-all-availables") {
+            updatedService = await ServiceModel.findByIdAndUpdate(id, {
+                $pull: { availableAppointments: { datetime: newDate } },
+            }, { new: true }).lean()
+            appointmentToUpdate.capacity = 0
+        } else {
+            updatedService = await ServiceModel.findByIdAndUpdate(id,
+                { $set: { availableAppointments: updatedAppointments } },
+                { new: true }
+            ).lean()
+            appointmentToUpdate.capacity -= 1
+        }
+
+        if (!updatedService) return res.status(404).send({ error: "Servicio no actualizado." })
+
+        const formattedResponse = formatServiceResponse(updatedService as ServiceWithAppointments, appointmentToUpdate)
+
+        res.status(200).send({ data: formattedResponse })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
+    }
+}
+
+const determineAppointmentAction = (appointmentToUpdate: AvailableAppointment, newDate: Date, availableAppointments: AvailableAppointment[], all: boolean) => {
+    const newCapacity = appointmentToUpdate.capacity - 1
+    const appointmentsWithoutUpdated = availableAppointments.filter(app =>
+        app.datetime.getTime() !== newDate.getTime()
+    )
+
+    if (all) {
+        return { action: "remove-all-availables", updatedAppointments: appointmentsWithoutUpdated }
+    }
+
+    if (appointmentToUpdate.taken === 0 && (appointmentToUpdate.taken === newCapacity)) {
+        return { action: "remove-from-calendar", updatedAppointments: appointmentsWithoutUpdated }
+    }
+
+    if (appointmentToUpdate.taken > 0 && (appointmentToUpdate.taken === newCapacity)) {
+        return { action: "remove-from-availables", updatedAppointments: appointmentsWithoutUpdated }
+    }
+
+    const updatedAppointment = {
+        ...appointmentToUpdate,
+        capacity: appointmentToUpdate.capacity - 1
+    }
+
+    return {
+        action: "udpate",
+        updatedAppointments: [...appointmentsWithoutUpdated, updatedAppointment]
+    }
+}
+
+const formatServiceResponse = (updatedService: ServiceWithAppointments, appointmentToUpdate: AvailableAppointment) => {
+    const arrayAppointmentsInString = updatedService.availableAppointments.map(appointment => ({
+        ...appointment,
+        datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+    }))
+
+    const scheduledAppointmentsInString = updatedService.scheduledAppointments.map(date =>
+        moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+    )
+
+    return {
+        service: {
+            ...updatedService,
+            availableAppointments: arrayAppointmentsInString,
+            scheduledAppointments: scheduledAppointmentsInString
+        },
+        appointment: {
+            ...appointmentToUpdate,
+            datetime: moment(appointmentToUpdate.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+        }
     }
 }
