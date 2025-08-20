@@ -6,7 +6,7 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
     <p>Hola ${user.split(" ")[0]},</p> 
     <p>Te informamos que tu turno para <strong>${service}</strong> en <strong>${company}</strong> fue confirmado.</p>
     <p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
-    <p>Si no puedes asistir, puedes cancelarlo haciendo clic en el siguiente botón:</p>
+    <p>Si no puedes asistir, puedes cancelarlo haciendo click en el siguiente botón:</p>
     <p>
       <a href="${cancelUrl}" 
          style="display:inline-block;padding:10px 15px;background-color:#d9534f;color:white;text-decoration:none;border-radius:5px;">

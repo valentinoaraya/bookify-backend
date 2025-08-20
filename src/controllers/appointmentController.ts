@@ -8,6 +8,7 @@ import { sendEmail } from "../services/emailService";
 import moment from "moment-timezone";
 import { generateRandomId } from "../utils/generateRandomId";
 import { ServiceWithAppointments, UserData, UserInputAppointment } from "../types";
+import { formatDate } from "../utils/formatDate";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string) => {
     try {
@@ -54,7 +55,7 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
             service.title,
             company.name,
             `${company.street} ${company.number}, ${company.city}`,
-            dateInString.split(' ')[0],
+            formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1],
             newAppointment.id
         )
@@ -63,7 +64,7 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
             company.name,
             service.title,
             `${dataUser.name} ${dataUser.lastName}`,
-            dateInString.split(' ')[0],
+            formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1]
         )
 
@@ -302,7 +303,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             company.name,
             req.user.name,
             service.title,
-            dateInString.split(' ')[0],
+            formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1],
         )
 
@@ -310,7 +311,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             company.name,
             req.user.name,
             service.title,
-            dateInString.split(' ')[0],
+            formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1],
         )
 
@@ -358,7 +359,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             req.company.name,
             `${appointment.name} ${appointment.lastName}`,
             service.title,
-            dateInString.split(' ')[0],
+            formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1]
         )
 
@@ -366,7 +367,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
             req.company.name,
             `${appointment.name} ${appointment.lastName}`,
             service.title,
-            dateInString.split(' ')[0],
+            formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1]
         )
 
