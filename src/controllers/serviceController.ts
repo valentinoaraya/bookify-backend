@@ -155,6 +155,58 @@ export const enabledAppointments = async (req: Request, res: Response): Promise<
     }
 }
 
+export const addEnableAppointment = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { id } = req.params
+        const { date } = req.body
+
+        const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires').toDate()
+
+        const service = await ServiceModel.findById(id).lean()
+
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
+
+        const appointmentToUpdate = service.availableAppointments.find(app => app.datetime.getTime() === newDate.getTime())
+
+        if (appointmentToUpdate) {
+            const availableAppointmentsWithoutNoChangedAppointment = service.availableAppointments.filter(app => app.datetime.getTime() !== appointmentToUpdate.datetime.getTime())
+            const updatedAppointment = {
+                ...appointmentToUpdate,
+                capacity: appointmentToUpdate.capacity + 1
+            }
+            const newAvailableAppointments = [...availableAppointmentsWithoutNoChangedAppointment, updatedAppointment]
+            const updatedService = await ServiceModel.findByIdAndUpdate(id, {
+                $set: { availableAppointments: newAvailableAppointments }
+            }, { new: true }).lean()
+
+            if (!updatedService) return res.status(400).send({ error: "Servicio no acutalizado." })
+
+            const formattedResponse = formatServiceResponse(updatedService as ServiceWithAppointments, updatedAppointment)
+
+            return res.status(200).send({ data: formattedResponse })
+        }
+
+        const takenQuantity = service.scheduledAppointments.filter(date => date.getTime() === newDate.getTime()).length
+        const newAvailableAppointment = {
+            datetime: newDate,
+            capacity: takenQuantity + 1,
+            taken: takenQuantity
+        }
+
+        const updatedService = await ServiceModel.findByIdAndUpdate(id, {
+            $push: { availableAppointments: newAvailableAppointment },
+        }, { new: true }).lean()
+
+        if (!updatedService) return res.status(400).send({ error: "Servicio no acutalizado." })
+
+        const formattedResponse = formatServiceResponse(updatedService as ServiceWithAppointments, newAvailableAppointment)
+
+        res.status(200).send({ data: formattedResponse })
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
 export const deleteEnabledAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { id } = req.params
@@ -241,7 +293,7 @@ const determineAppointmentAction = (appointmentToUpdate: AvailableAppointment, n
     }
 }
 
-const formatServiceResponse = (updatedService: ServiceWithAppointments, appointmentToUpdate: AvailableAppointment) => {
+const formatServiceResponse = (updatedService: ServiceWithAppointments, appointmentToSend: AvailableAppointment) => {
     const arrayAppointmentsInString = updatedService.availableAppointments.map(appointment => ({
         ...appointment,
         datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -258,8 +310,8 @@ const formatServiceResponse = (updatedService: ServiceWithAppointments, appointm
             scheduledAppointments: scheduledAppointmentsInString
         },
         appointment: {
-            ...appointmentToUpdate,
-            datetime: moment(appointmentToUpdate.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            ...appointmentToSend,
+            datetime: moment(appointmentToSend.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
         }
     }
 }
