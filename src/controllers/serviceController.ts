@@ -26,6 +26,27 @@ export const createService = async (req: Request, res: Response) => {
     }
 }
 
+export const getService = async (req: Request, res: Response): Promise<Response | void> => {
+    try {
+        const { id } = req.params
+        const service = await ServiceModel.findById(id).populate("companyId", "name city email").lean()
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
+        const availableAppointments = service.availableAppointments.map(appointment => ({
+            ...appointment,
+            datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+        }))
+        const scheduledAppointments = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+        const serviceWithAppointments = {
+            ...service,
+            availableAppointments,
+            scheduledAppointments
+        }
+        res.status(200).send({ data: serviceWithAppointments })
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
 export const editService = async (req: Request, res: Response): Promise<Response | void> => {
     try {
         const { id } = req.params

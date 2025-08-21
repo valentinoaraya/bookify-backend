@@ -15,7 +15,7 @@ const isNumber = (param: any): boolean => {
 const isEmail = (param: any): boolean => {
     if (typeof param != "string") return false
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(param);
+    return emailRegex.test(param.trim());
 }
 
 const isDate = (param: any): boolean => {
@@ -39,7 +39,7 @@ const parseNumber = (input: any, nameInput: string): number => {
 
 const parseEmail = (emailFromRequest: any): Email => {
     if (!isEmail(emailFromRequest)) throw new Error("Email incorrecto o incompleto.")
-    return emailFromRequest
+    return emailFromRequest.trim()
 }
 
 const parsePassword = async (passwordFromRequest: any): Promise<string> => {
@@ -56,11 +56,11 @@ const parseDate = (dateFromRequest: any): Date => {
 
 export const verifyUserInputs = (object: any): UserData => {
     return {
-        name: parseInput(object.name, "name"),
-        lastName: parseInput(object.lastName, "lastName"),
-        dni: parseInput(object.dni, "dni"),
+        name: parseInput(object.name, "name").trim(),
+        lastName: parseInput(object.lastName, "lastName").trim(),
+        dni: parseInput(object.dni, "dni").trim(),
         email: parseEmail(object.email),
-        phone: parseInput(object.phone, "phone")
+        phone: parseInput(object.phone, "phone").trim()
     }
 }
 
@@ -70,14 +70,14 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
     const hashedPassword = await hashPassword(newPassword)
 
     const newCompany: CompanyInputs = {
-        name: parseInput(object.name, "Nombre"),
-        company_id: parseInput(object.company_id, "ID de empresa"),
+        name: parseInput(object.name, "Nombre").trim(),
+        company_id: parseInput(object.company_id, "ID de empresa").trim(),
         email: parseEmail(object.email),
         password: hashedPassword,
-        phone: parseInput(object.phone, "Teléfono"),
-        city: parseInput(object.city, "Ubicación"),
-        street: parseInput(object.street, "Calle"),
-        number: parseInput(object.number, "Número de calle")
+        phone: parseInput(object.phone, "Teléfono").trim(),
+        city: parseInput(object.city, "Ubicación").trim(),
+        street: parseInput(object.street, "Calle").trim(),
+        number: parseInput(object.number, "Número de calle").trim()
     }
 
     return newCompany
@@ -89,11 +89,11 @@ export const userToAdd = async (object: any): Promise<UserInputs> => {
     const hashedPasswoed = await hashPassword(newPassword)
 
     const newUser: UserInputs = {
-        name: parseInput(object.name, "Nombre"),
-        lastName: parseInput(object.lastName, "Apellido"),
+        name: parseInput(object.name, "Nombre").trim(),
+        lastName: parseInput(object.lastName, "Apellido").trim(),
         email: parseEmail(object.email),
         password: hashedPasswoed,
-        phone: parseInput(object.phone, "Teléfono")
+        phone: parseInput(object.phone, "Teléfono").trim()
     }
 
     return newUser
@@ -127,8 +127,8 @@ export const createToken = (data: BasicInfoWithID): string => {
 
 export const serviceToAdd = (object: any): Service => {
     const service: Service = {
-        title: parseInput(object.title, "Titulo"),
-        description: parseInput(object.description, "Descripción"),
+        title: parseInput(object.title, "Titulo").trim(),
+        description: parseInput(object.description, "Descripción").trim(),
         price: parseNumber(object.price, "Precio"),
         capacityPerShift: parseNumber(object.capacityPerShift, "Capacidad de personas") <= 0 ? 1 : parseNumber(object.capacityPerShift, "Capacidad de personas"),
         duration: parseNumber(object.duration, "Duración"),
@@ -141,8 +141,8 @@ export const serviceToAdd = (object: any): Service => {
 export const serviceToUpdate = (object: any) => {
     const { title, description, price, duration, signPrice, capacityPerShift } = object
     const updateFields: any = {}
-    if (title != undefined) updateFields.title = title
-    if (description != undefined) updateFields.description = description
+    if (title != undefined) updateFields.title = title.trim()
+    if (description != undefined) updateFields.description = description.trim()
     if (price != undefined) updateFields.price = price
     if (capacityPerShift != undefined && capacityPerShift > 0) updateFields.capacityPerShift = capacityPerShift
     if (duration != undefined) updateFields.duration = duration
