@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addEnableAppointment, createService, deleteEnabledAppointment, deleteService, editService, enabledAppointments, getService } from "../controllers/serviceController";
+import { addEnableAppointment, containsSignPrice, createService, deleteEnabledAppointment, deleteService, editService, enabledAppointments, getService } from "../controllers/serviceController";
 import { authenticateTokenCompany } from "../middlewares/verifyTokens";
 import verifyService from "../middlewares/verifyServices";
 
@@ -12,5 +12,6 @@ servicesRouter.post("/enable-appointments/:id", authenticateTokenCompany, verify
 servicesRouter.post("/add-enable-appointment/:id", authenticateTokenCompany, verifyService, addEnableAppointment)
 servicesRouter.delete("/delete-appointment/:id", authenticateTokenCompany, verifyService, deleteEnabledAppointment)
 servicesRouter.get("/:id", getService)
+servicesRouter.get("/contains-sign-price/:id", containsSignPrice)
 
 export default servicesRouter

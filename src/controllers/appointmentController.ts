@@ -10,14 +10,14 @@ import { generateRandomId } from "../utils/generateRandomId";
 import { ServiceWithAppointments, UserData, UserInputAppointment } from "../types";
 import { formatDate } from "../utils/formatDate";
 
-const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string) => {
+const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string, totalPaidAmount?: number) => {
     try {
         const service = await ServiceModel.findById(serviceId).lean()
         const company = await CompanyModel.findById(companyId)
 
         if (!company || !service) throw new Error("Error al obtener empresa, servicio o usuario.")
 
-        const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId })
+        const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId, totalPaidAmount })
         const newAppointment = new AppointmentModel({ ...appointment, ...dataUser })
         const savedAppointment = await newAppointment.save()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -135,6 +135,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
 
             if (paymentInfo.status === "approved") {
                 const paramsExternalReference = paymentInfo.external_reference.split("_")
+                const totalPaidAmount = paymentInfo.transaction_details.total_paid_amount
 
                 const companyId = paramsExternalReference[0]
                 const serviceId = paramsExternalReference[1]
@@ -150,7 +151,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
 
                 const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
 
-                await createAppointment(companyId, serviceId, newDate.toDate(), dataUser, paymentId)
+                await createAppointment(companyId, serviceId, newDate.toDate(), dataUser, paymentId, totalPaidAmount)
 
                 return res.status(200).send({ data: "Pago procesado y turno confirmado." })
             }
@@ -276,11 +277,11 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
 
-        if (service.signPrice > 0) {
+        if (appointment.paymentId && appointment.totalPaidAmount) {
             const company = await CompanyModel.findById(appointment.companyId)
             if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
 
-            const amount = service.signPrice * 0.5
+            const amount = appointment.totalPaidAmount * 0.5
 
             const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token, amount)
 
@@ -338,7 +339,7 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
 
-        if (service.signPrice > 0) {
+        if (appointment.paymentId) {
             const company = await CompanyModel.findById(appointment.companyId)
             if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
             const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
@@ -437,7 +438,6 @@ export const getAppointment = async (req: Request, res: Response): Promise<void 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }
-
 }
 
 export const getCompanyHistory = async (req: Request, res: Response): Promise<void | Response> => {
@@ -500,7 +500,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 price: appointment.serviceId.price || 0,
                 notes: ""
             };
-        }).filter(appointment => appointment !== null); // Filtrar citas nulas
+        }).filter(appointment => appointment !== null);
 
         res.status(200).send({
             data: formattedAppointments

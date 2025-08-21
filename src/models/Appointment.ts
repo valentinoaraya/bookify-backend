@@ -10,6 +10,7 @@ const AppointmentSchema = new Schema({
     phone: { type: String, required: true },
     date: { type: Date, required: true },
     paymentId: { type: String },
+    totalPaidAmount: { type: Number },
     createdAt: { type: Date, default: Date.now },
     updateAt: { type: Date, default: Date.now }
 })

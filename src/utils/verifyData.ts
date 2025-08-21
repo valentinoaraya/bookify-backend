@@ -154,9 +154,10 @@ export const serviceToUpdate = (object: any) => {
 export const appointmentToAdd = (object: any): UserInputAppointment => {
     const newAppointment: UserInputAppointment = {
         date: parseDate(object.date),
-        serviceId: parseInput(object.serviceId, "ID de Servicio"),
-        companyId: parseInput(object.companyId, "ID de Empresa"),
-        paymentId: object.paymentId ? object.paymentId : null
+        serviceId: parseInput(object.serviceId, "ID de Servicio").trim(),
+        companyId: parseInput(object.companyId, "ID de Empresa").trim(),
+        paymentId: object.paymentId ? object.paymentId : null,
+        totalPaidAmount: object.totalPaidAmount ? parseNumber(object.totalPaidAmount, "Total pagado") : undefined
     }
 
     return newAppointment

@@ -66,6 +66,7 @@ export interface UserInputAppointment {
     serviceId: string
     companyId: string
     paymentId?: string
+    totalPaidAmount?: number
 }
 
 export interface PopulatedAppointment {

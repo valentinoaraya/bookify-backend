@@ -29,7 +29,7 @@ export const createService = async (req: Request, res: Response) => {
 export const getService = async (req: Request, res: Response): Promise<Response | void> => {
     try {
         const { id } = req.params
-        const service = await ServiceModel.findById(id).populate("companyId", "name city email").lean()
+        const service = await ServiceModel.findById(id).lean()
         if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
         const availableAppointments = service.availableAppointments.map(appointment => ({
             ...appointment,
@@ -42,6 +42,18 @@ export const getService = async (req: Request, res: Response): Promise<Response 
             scheduledAppointments
         }
         res.status(200).send({ data: serviceWithAppointments })
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
+export const containsSignPrice = async (req: Request, res: Response): Promise<Response | void> => {
+    try {
+        const { id } = req.params
+        const service = await ServiceModel.findById(id).lean()
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
+        const containsSignPrice = service.signPrice > 0
+        res.status(200).send({ data: { contains: containsSignPrice } })
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }
