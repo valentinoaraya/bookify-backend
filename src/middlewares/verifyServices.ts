@@ -1,4 +1,3 @@
-// Middleware para verificar que el servicio que se va a eliminar pertenece a la empresa que envía la solicitud
 import { NextFunction, Request, Response } from "express";
 import CompanyModel from "../models/Company";
 
