@@ -1,6 +1,7 @@
 import { Response, Request } from "express"
 import { CLIENT_ID_MP, CLIENT_SECRET_MP, REDIRECT_URL_MP } from "../config"
 import CompanyModel from "../models/Company"
+import ServiceModel from "../models/Service"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -11,6 +12,12 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         const { serviceId, title, price, date } = req.body
 
         const empresa = await CompanyModel.findById(empresaId)
+
+        const service = await ServiceModel.findById(serviceId)
+
+        if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
+
+        if (service.signPrice <= 0) return res.status(400).send({ error: "El servicio no requiere seña. Vuelve al panel principal e intenta volver a sacarlo." })
 
         if (!empresa || !empresa.mp_access_token) return res.status(404).send({ error: "La empresa no está vinculada con Mercado Pago" })
 
