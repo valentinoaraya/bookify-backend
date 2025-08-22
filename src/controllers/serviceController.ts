@@ -6,6 +6,7 @@ import { serviceToAdd, serviceToUpdate } from "../utils/verifyData";
 import { generateAppointments } from "../utils/generateAppointments";
 import moment from "moment-timezone";
 import { AvailableAppointment, ServiceWithAppointments } from "../types";
+import { deleteAppointmentProcess } from "./appointmentController";
 
 export const createService = async (req: Request, res: Response) => {
     try {
@@ -121,7 +122,22 @@ export const editService = async (req: Request, res: Response): Promise<Response
 
 export const deleteService = async (req: Request, res: Response): Promise<void | Response> => {
     try {
+        if (!req.company) return res.status(500).send({ error: "Empresa no encontrada." })
         const { id } = req.params
+        const appointmentsToDelete = await AppointmentModel.find({ serviceId: id });
+
+        if (appointmentsToDelete.length > 0) {
+
+            for (const appointment of appointmentsToDelete) {
+                await deleteAppointmentProcess(appointment.id, req.company.name, req.company.email)
+            }
+            // const appointmentIds = appointmentsToDelete.map(app => app._id)
+            // await AppointmentModel.deleteMany({ _id: { $in: appointmentIds } })
+            // await CompanyModel.findByIdAndUpdate(service.companyId, {
+            //     $pull: { scheduledAppointments: { $in: appointmentIds } }
+            // })
+        }
+
         const service = await ServiceModel.findByIdAndDelete(id)
 
         if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
@@ -129,16 +145,6 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
         await CompanyModel.findByIdAndUpdate(service.companyId, {
             $pull: { services: id }
         })
-
-        const appointmentsToDelete = await AppointmentModel.find({ serviceId: id });
-
-        if (appointmentsToDelete.length > 0) {
-            const appointmentIds = appointmentsToDelete.map(app => app._id)
-            await AppointmentModel.deleteMany({ _id: { $in: appointmentIds } })
-            await CompanyModel.findByIdAndUpdate(service.companyId, {
-                $pull: { scheduledAppointments: { $in: appointmentIds } }
-            })
-        }
 
         res.status(200).send({
             data: "Servicio eliminado",
