@@ -331,49 +331,8 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
         if (!req.company) return res.status(500).send({ error: "Empresa no encontrada." })
 
         const { id } = req.params
-        const appointment = await AppointmentModel.findById(id).lean()
 
-        if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
-
-        const service = await ServiceModel.findById(appointment.serviceId).lean()
-
-        if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
-
-        if (appointment.paymentId) {
-            const company = await CompanyModel.findById(appointment.companyId)
-            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
-            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
-            if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
-        }
-
-        await AppointmentModel.findByIdAndDelete(id)
-
-        const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
-
-        await CompanyModel.findByIdAndUpdate(appointment.companyId, {
-            $pull: { scheduledAppointments: appointment._id }
-        })
-
-        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-
-        const { htmlUser, textUser } = emailDeleteAppointmentUser(
-            req.company.name,
-            `${appointment.name} ${appointment.lastName}`,
-            service.title,
-            formatDate(dateInString.split(' ')[0]),
-            dateInString.split(' ')[1]
-        )
-
-        const { htmlCompany, textCompany } = emailDeleteAppointmentCompany(
-            req.company.name,
-            `${appointment.name} ${appointment.lastName}`,
-            service.title,
-            formatDate(dateInString.split(' ')[0]),
-            dateInString.split(' ')[1]
-        )
-
-        await sendEmail(appointment.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
-        await sendEmail(req.company.email, "Turno cancelado", textCompany, htmlCompany)
+        const { serviceToSend, appointment, dateInString } = await deleteAppointmentProcess(id, req.company.name, req.company.email)
 
         const availableAppointmentsToSend = serviceToSend?.availableAppointments.map(appointment => {
             return {
@@ -383,7 +342,6 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
         })
 
         const scheduledAppointmentsToSend = serviceToSend?.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
-
 
         res.status(200).send({
             data: {
@@ -398,6 +356,60 @@ export const deleteAppointment = async (req: Request, res: Response): Promise<vo
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
+    }
+}
+
+export const deleteAppointmentProcess = async (idAppointment: string, companyName: string, companyEmail: string) => {
+    try {
+        const appointment = await AppointmentModel.findById(idAppointment).lean()
+
+        if (!appointment) throw new Error("Turno no encontrado.")
+
+        const service = await ServiceModel.findById(appointment.serviceId).lean()
+
+        if (!service) throw new Error("Servicio no encontrado.")
+
+        if (appointment.paymentId) {
+            const company = await CompanyModel.findById(appointment.companyId)
+            if (!company) throw new Error("Empresa no encontrada.")
+            const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token)
+            if (!refundResponse) throw new Error("No se pudo procesar la devolución.")
+        }
+
+        await AppointmentModel.findByIdAndDelete(idAppointment)
+
+        const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
+
+        await CompanyModel.findByIdAndUpdate(appointment.companyId, {
+            $pull: { scheduledAppointments: appointment._id }
+        })
+
+        const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+
+        const { htmlUser, textUser } = emailDeleteAppointmentUser(
+            companyName,
+            `${appointment.name} ${appointment.lastName}`,
+            service.title,
+            formatDate(dateInString.split(' ')[0]),
+            dateInString.split(' ')[1]
+        )
+
+        const { htmlCompany, textCompany } = emailDeleteAppointmentCompany(
+            companyName,
+            `${appointment.name} ${appointment.lastName}`,
+            service.title,
+            formatDate(dateInString.split(' ')[0]),
+            dateInString.split(' ')[1]
+        )
+
+        await sendEmail(appointment.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
+        await sendEmail(companyEmail, "Turno cancelado", textCompany, htmlCompany)
+
+        return { serviceToSend, appointment, dateInString }
+
+    } catch (error: any) {
+        console.error("Error in deleteAppointmentProcess: ", error)
+        throw new Error(error.message)
     }
 }
 
