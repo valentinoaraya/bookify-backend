@@ -131,11 +131,6 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
             for (const appointment of appointmentsToDelete) {
                 await deleteAppointmentProcess(appointment.id, req.company.name, req.company.email)
             }
-            // const appointmentIds = appointmentsToDelete.map(app => app._id)
-            // await AppointmentModel.deleteMany({ _id: { $in: appointmentIds } })
-            // await CompanyModel.findByIdAndUpdate(service.companyId, {
-            //     $pull: { scheduledAppointments: { $in: appointmentIds } }
-            // })
         }
 
         const service = await ServiceModel.findByIdAndDelete(id)
