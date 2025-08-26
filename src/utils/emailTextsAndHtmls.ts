@@ -96,3 +96,22 @@ export const emailDeleteAppointmentCompany = (company: string, user: string, ser
 
     return { htmlCompany, textCompany }
 }
+
+export const emailRefundAppointmentUser = (company: string, user: string, service: string, date: string, time: string) => {
+    const htmlUser = `<h2>Turno no disponible - Reembolso procesado</h2>
+    <p>Hola ${user.split(" ")[0]},</p> 
+    <p>Lamentamos informarte que el turno que intentaste reservar para <strong>${service}</strong> en <strong>${company}</strong> ya no está disponible.</p>
+    <p>Tu pago fue procesado correctamente, pero como el turno ya fue ocupado antes por otro usuario, hemos procesado el reembolso completo de tu dinero.</p>
+    <p>El turno estaba agendado para el día ${date} a las ${time} hs.</p>
+    <p>Te recomendamos buscar otro horario disponible o contactar directamente con ${company} para coordinar una nueva fecha.</p>
+    <p>El reembolso se verá reflejado en tu cuenta.</p>`
+
+    const textUser = `Hola ${user.split(" ")[0]},\n
+    Lamentamos informarte que el turno que intentaste reservar para ${service} en ${company} ya no está disponible.\n
+    Tu pago fue procesado correctamente, pero como el turno ya fue ocupado antes por otro usuario, hemos procesado el reembolso completo de tu dinero.\n
+    El turno estaba agendado para el día ${date} a las ${time} hs.\n
+    Te recomendamos buscar otro horario disponible o contactar directamente con ${company} para coordinar una nueva fecha.\n
+    El reembolso se verá reflejado en tu cuenta.`
+
+    return { htmlUser, textUser }
+}

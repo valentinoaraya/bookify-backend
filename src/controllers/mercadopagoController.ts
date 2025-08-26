@@ -2,6 +2,7 @@ import { Response, Request } from "express"
 import { CLIENT_ID_MP, CLIENT_SECRET_MP, REDIRECT_URL_MP } from "../config"
 import CompanyModel from "../models/Company"
 import ServiceModel from "../models/Service"
+import { markAppointmentAsPending } from "../utils/managePendingAppointments"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -20,6 +21,14 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
         if (service.signPrice <= 0) return res.status(400).send({ error: "El servicio no requiere seña. Vuelve al panel principal e intenta volver a sacarlo." })
 
         if (!empresa || !empresa.mp_access_token) return res.status(404).send({ error: "La empresa no está vinculada con Mercado Pago" })
+
+        const dateObj = new Date(date);
+        const userId = `${name}_${lastName}_${email}`;
+        const pendingMarked = await markAppointmentAsPending(serviceId, dateObj, userId);
+
+        if (!pendingMarked) {
+            return res.status(500).send({ error: "No se pudo reservar temporalmente el turno." });
+        }
 
         const body = {
             items: [

@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { emailCancelAppointmentCompany, emailCancelAppointmentUser, emailConfirmAppointmentUser, emailConfirmAppointmentCompany, emailDeleteAppointmentUser, emailDeleteAppointmentCompany } from "../utils/emailTextsAndHtmls";
+import { emailCancelAppointmentCompany, emailCancelAppointmentUser, emailConfirmAppointmentUser, emailConfirmAppointmentCompany, emailDeleteAppointmentUser, emailDeleteAppointmentCompany, emailRefundAppointmentUser } from "../utils/emailTextsAndHtmls";
 import { appointmentToAdd } from "../utils/verifyData";
 import ServiceModel from "../models/Service";
 import AppointmentModel from "../models/Appointment";
@@ -9,6 +9,7 @@ import moment from "moment-timezone";
 import { generateRandomId } from "../utils/generateRandomId";
 import { ServiceWithAppointments, UserData, UserInputAppointment } from "../types";
 import { formatDate } from "../utils/formatDate";
+import { isAppointmentAvailable, removePendingAppointment } from "../utils/managePendingAppointments";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string, totalPaidAmount?: number) => {
     try {
@@ -111,7 +112,6 @@ export const confirmAppointment = async (req: Request, res: Response): Promise<v
 
 export const confirmAppointmentWebhook = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-
         const { type, action, data, user_id } = req.body
 
         if (type === "payment" && action === "payment.created") {
@@ -151,7 +151,55 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
 
                 const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
 
-                await createAppointment(companyId, serviceId, newDate.toDate(), dataUser, paymentId, totalPaidAmount)
+                const userId = `${dataUser.name}_${dataUser.lastName}_${dataUser.email}`
+                const isAvailable = await isAppointmentAvailable(serviceId, newDate.toDate(), userId)
+
+                if (!isAvailable) {
+                    console.log(`⚠️  Turno no disponible para ${dataUser.email}. Procesando reembolso...`)
+
+                    const refundResponse = await refund(paymentId, company.mp_access_token, totalPaidAmount)
+
+                    if (refundResponse) {
+                        console.log(`✅ Reembolso procesado para ${dataUser.email}`)
+
+                        const { htmlUser, textUser } = emailRefundAppointmentUser(
+                            company.name,
+                            dataUser.name,
+                            "Turno no disponible",
+                            formatDate(newDate.format('YYYY-MM-DD')),
+                            newDate.format('HH:mm')
+                        )
+
+                        await sendEmail(dataUser.email, "Turno no disponible - Reembolso procesado", textUser, htmlUser)
+
+                        return res.status(200).send({
+                            data: "Pago aprobado pero turno no disponible. Reembolso procesado."
+                        })
+                    } else {
+                        console.error(`❌ Error al procesar reembolso para ${dataUser.email}`)
+                        return res.status(500).send({
+                            error: "Error al procesar reembolso. Contactar al soporte."
+                        })
+                    }
+                }
+
+                const appointment = await createAppointment(companyId, serviceId, newDate.toDate(), dataUser, paymentId, totalPaidAmount)
+
+                if (!appointment) {
+                    return res.status(500).send({ error: "No se pudo crear el turno." })
+                }
+
+                const pendingRemoved = await removePendingAppointment(
+                    serviceId,
+                    newDate.toDate(),
+                    userId
+                )
+
+                if (pendingRemoved) {
+                    console.log(`✅ Turno confirmado para ${dataUser.email} y removido de pendingAppointments`)
+                } else {
+                    console.log(`⚠️  Turno confirmado para ${dataUser.email} pero no se pudo remover de pendingAppointments`)
+                }
 
                 return res.status(200).send({ data: "Pago procesado y turno confirmado." })
             }
