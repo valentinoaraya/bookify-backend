@@ -7,6 +7,7 @@ import servicesRouter from "./routes/services.routes"
 import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
 import { startSendReminders } from "./utils/sendAppointmentReminders"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
+import { startCleanupPendingAppointments } from "./utils/managePendingAppointments"
 import mercadopagoRouter from "./routes/mercadopago.routes"
 
 const app = express()
@@ -27,6 +28,7 @@ mongoose.connect(MONGOOSE_URL as string)
 
 startSendReminders()
 startCleanupAppointments()
+startCleanupPendingAppointments()
 
 app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)

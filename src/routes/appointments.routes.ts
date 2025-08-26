@@ -7,13 +7,10 @@ const appointmentsRouter = Router()
 
 appointmentsRouter.get("/get-appointment/:id", getAppointment)
 appointmentsRouter.post("/add-appointment", verifyDataUser, confirmAppointment)
-appointmentsRouter.delete("/cancel-appointment/:id", verifyDataUser, cancelAppointment)
+appointmentsRouter.delete("/cancel1-appointment/:id", verifyDataUser, cancelAppointment)
 appointmentsRouter.delete("/delete-appointment/:id", authenticateTokenCompany, deleteAppointment)
 appointmentsRouter.post("/webhooks/confirm-appointment", confirmAppointmentWebhook)
 appointmentsRouter.get("/company-history/:companyId", getCompanyHistory)
 appointmentsRouter.get("/test-company-data/:companyId", testCompanyData)
 
-
-
 export default appointmentsRouter
-

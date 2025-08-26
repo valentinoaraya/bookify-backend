@@ -17,6 +17,21 @@ const availableAppointment = new mongoose.Schema({
     }
 });
 
+const pendingAppointment = new mongoose.Schema({
+    datetime: {
+        type: Date,
+        required: true
+    },
+    expiresAt: {
+        type: Date,
+        required: true
+    },
+    userId: {
+        type: String,
+        required: true
+    }
+});
+
 const ServiceSchema = new Schema({
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
     title: { type: String, required: true },
@@ -28,6 +43,7 @@ const ServiceSchema = new Schema({
     updatedAt: { type: Date, default: Date.now },
     availableAppointments: [availableAppointment],
     scheduledAppointments: [{ type: Date, default: [] }],
+    pendingAppointments: [pendingAppointment],
     signPrice: { type: Number, default: 0 }
 })
 

@@ -59,6 +59,7 @@ export interface Service {
 export interface ServiceWithAppointments extends Service {
     availableAppointments: AvailableAppointment[]
     scheduledAppointments: Date[]
+    pendingAppointments: PendingAppointment[]
 }
 
 export interface UserInputAppointment {
@@ -87,6 +88,12 @@ export interface AvailableAppointment {
     datetime: Date
     capacity: number
     taken: number
+}
+
+export interface PendingAppointment {
+    datetime: Date
+    expiresAt: Date
+    userId: string
 }
 
 export interface AvailableAppointmentInString {
