@@ -96,6 +96,11 @@ export const removePendingAppointment = async (
     date: Date,
     userId: string
 ): Promise<boolean> => {
+
+    console.log("Service ID:", serviceId)
+    console.log("Date:", date)
+    console.log("User ID:", userId)
+
     try {
         const result = await ServiceModel.findByIdAndUpdate(
             serviceId,
