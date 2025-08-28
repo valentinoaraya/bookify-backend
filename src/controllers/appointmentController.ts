@@ -164,10 +164,12 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
                     if (refundResponse) {
                         console.log(`✅ Reembolso procesado para ${dataUser.email}`)
 
+                        const service = await ServiceModel.findById(serviceId).lean()
+
                         const { htmlUser, textUser } = emailRefundAppointmentUser(
                             company.name,
                             dataUser.name,
-                            "Turno no disponible",
+                            service?.title as string,
                             formatDate(newDate.format('YYYY-MM-DD')),
                             newDate.format('HH:mm')
                         )
