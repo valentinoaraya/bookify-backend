@@ -24,9 +24,9 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         const dateObj = new Date(date);
         const userId = `${name}_${lastName}_${email}`;
-        const pendingMarked = await markAppointmentAsPending(serviceId, dateObj, userId);
+        const pendingId = await markAppointmentAsPending(serviceId, dateObj, userId);
 
-        if (!pendingMarked) {
+        if (!pendingId) {
             return res.status(500).send({ error: "No se pudo reservar temporalmente el turno." });
         }
 
@@ -53,7 +53,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 pending: "https://bookify-aedes.vercel.app/processingpayment"
             },
             auto_return: "approved",
-            external_reference: `${empresaId}_${serviceId}_${date}_${name}_${lastName}_${email}_${dni}_${phone}`,
+            external_reference: `${empresaId}_${serviceId}_${date}_${name}_${lastName}_${email}_${dni}_${phone}_${pendingId}`,
             statement_descriptor: "BOOKIFY TURNOS"
         }
 

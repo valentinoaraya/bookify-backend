@@ -149,6 +149,8 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
                     phone: paramsExternalReference[7],
                 }
 
+                const pendingId = paramsExternalReference[8]
+
                 const newDate = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires')
 
                 const userId = `${dataUser.name}_${dataUser.lastName}_${dataUser.email}`
@@ -191,8 +193,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
 
                 const pendingRemoved = await removePendingAppointment(
                     serviceId,
-                    newDate.toDate(),
-                    userId
+                    pendingId
                 )
 
                 if (pendingRemoved) {

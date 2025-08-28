@@ -1,20 +1,23 @@
 import moment from "moment-timezone";
 import ServiceModel from "../models/Service";
 import cron from "node-cron";
+import mongoose from "mongoose";
 
 export const markAppointmentAsPending = async (
     serviceId: string,
     date: Date,
     userId: string
-): Promise<boolean> => {
+): Promise<string | null> => {
     try {
         const expiresAt = moment().add(15, 'minutes').toDate();
+        const pendingId = new mongoose.Types.ObjectId();
 
         const result = await ServiceModel.findByIdAndUpdate(
             serviceId,
             {
                 $push: {
                     pendingAppointments: {
+                        _id: pendingId,
                         datetime: date,
                         expiresAt: expiresAt,
                         userId: userId
@@ -24,10 +27,10 @@ export const markAppointmentAsPending = async (
             { new: true }
         );
 
-        return !!result;
+        return result ? pendingId.toString() : null;
     } catch (error) {
         console.error('Error al marcar turno como pendiente:', error);
-        return false;
+        return null;
     }
 };
 
@@ -93,13 +96,11 @@ export const isAppointmentAvailable = async (
 
 export const removePendingAppointment = async (
     serviceId: string,
-    date: Date,
-    userId: string
+    pendingId: string
 ): Promise<boolean> => {
 
     console.log("Service ID:", serviceId)
-    console.log("Date:", date)
-    console.log("User ID:", userId)
+    console.log("Pending ID:", pendingId)
 
     try {
         const result = await ServiceModel.findByIdAndUpdate(
@@ -107,8 +108,7 @@ export const removePendingAppointment = async (
             {
                 $pull: {
                     pendingAppointments: {
-                        datetime: date,
-                        userId: userId
+                        _id: new mongoose.Types.ObjectId(pendingId)
                     }
                 }
             },
@@ -116,7 +116,7 @@ export const removePendingAppointment = async (
         );
 
         if (result) {
-            console.log(`✅ Turno removido de pendingAppointments para ${userId}`);
+            console.log(`✅ Turno removido de pendingAppointments con _id ${pendingId}`);
             return true;
         }
 
