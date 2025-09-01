@@ -9,6 +9,8 @@ import { startSendReminders } from "./utils/sendAppointmentReminders"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
 import { startCleanupPendingAppointments } from "./utils/managePendingAppointments"
 import mercadopagoRouter from "./routes/mercadopago.routes"
+import http from "http"
+import { Server } from "socket.io"
 
 const app = express()
 
@@ -36,6 +38,27 @@ app.use("/services", servicesRouter)
 app.use("/mercadopago", mercadopagoRouter)
 app.use(express.json())
 
-app.listen(PORT, () => {
+const server = http.createServer(app)
+export const io = new Server(server, {
+    cors: {
+        origin: FRONTEND_URL || "http://localhost:5173",
+        methods: ["GET", "POTS"]
+    }
+})
+
+io.on("connection", (socket) => {
+    console.log("Cliente conectado:", socket.id)
+
+    socket.on("joinCompany", (companyId: string) => {
+        socket.join(companyId)
+        console.log(`Cliente ${socket.id} unido a la empresa ${companyId}`)
+    })
+
+    socket.on("disconnect", () => {
+        console.log("Cliente desconectado:", socket.id)
+    })
+})
+
+server.listen(PORT, () => {
     console.log(`Server runing on port ${PORT}`)
 })
