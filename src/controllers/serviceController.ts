@@ -37,10 +37,15 @@ export const getService = async (req: Request, res: Response): Promise<Response 
             datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
         }))
         const scheduledAppointments = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+        const pendingAppointments = service.pendingAppointments.map(pendingApp => ({
+            ...pendingApp,
+            datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+        }))
         const serviceWithAppointments = {
             ...service,
             availableAppointments,
-            scheduledAppointments
+            scheduledAppointments,
+            pendingAppointments
         }
         res.status(200).send({ data: serviceWithAppointments })
     } catch (error: any) {

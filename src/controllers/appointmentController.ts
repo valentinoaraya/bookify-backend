@@ -10,6 +10,7 @@ import { generateRandomId } from "../utils/generateRandomId";
 import { ServiceWithAppointments, UserData, UserInputAppointment } from "../types";
 import { formatDate } from "../utils/formatDate";
 import { isAppointmentAvailable, removePendingAppointment } from "../utils/managePendingAppointments";
+import { io } from "../index"
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string, totalPaidAmount?: number) => {
     try {
@@ -21,6 +22,7 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
         const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId, totalPaidAmount })
         const newAppointment = new AppointmentModel({ ...appointment, ...dataUser })
         const savedAppointment = await newAppointment.save()
+        const appointmentToSend = await AppointmentModel.findById(savedAppointment._id).populate("serviceId").lean()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
         const appt = service.availableAppointments.find(a => a.datetime.getTime() === date.getTime())
@@ -73,19 +75,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
         await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
 
         return {
-            _id: savedAppointment._id,
-            date: dateInString,
-            serviceId: {
-                title: service.title,
-                duration: service.duration,
-                price: service.price
-            },
-            companyId: {
-                name: company.name,
-                city: company.city,
-                street: company.street,
-                number: company.number
-            },
+            ...appointmentToSend,
+            date: moment(savedAppointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'),
         }
     } catch (error: any) {
         console.error(error)
@@ -103,6 +94,7 @@ export const confirmAppointment = async (req: Request, res: Response): Promise<v
 
         if (!appointment) return res.status(500).send({ error: "No se pudo crear el turno." })
 
+        io.to(appointment.companyId!.toString()).emit("company:appointment-added", appointment)
         res.status(200).send({ data: appointment })
 
     } catch (error: any) {
@@ -348,6 +340,8 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
         })
 
         if (!company) return res.status(500).send({ error: "Error al obtener empresa." })
+
+        io.to(company._id.toString()).emit("company:appointment-deleted", id)
 
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 
