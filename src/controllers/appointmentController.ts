@@ -30,13 +30,14 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 
         appt.taken = (appt.taken || 0) + 1
 
+        let serviceToSend
         if (appt.taken >= appt.capacity) {
-            await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
+            serviceToSend = await ServiceModel.findByIdAndUpdate(appointment.serviceId, {
                 $pull: { availableAppointments: { datetime: appointment.date } },
                 $push: { scheduledAppointments: appointment.date }
-            })
+            }, { new: true }).lean()
         } else {
-            await ServiceModel.findOneAndUpdate(
+            serviceToSend = await ServiceModel.findOneAndUpdate(
                 {
                     _id: appointment.serviceId,
                     "availableAppointments.datetime": appointment.date
@@ -46,7 +47,7 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
                     $inc: { "availableAppointments.$.taken": 1 }
                 },
                 { new: true }
-            );
+            ).lean();
         }
 
         await CompanyModel.findByIdAndUpdate(appointment.companyId, {
@@ -76,6 +77,20 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 
         return {
             ...appointmentToSend,
+            serviceId: {
+                ...serviceToSend,
+                availableAppointments: serviceToSend?.availableAppointments.map(available => {
+                    return {
+                        ...available,
+                        datetime: moment(available.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                    }
+                }),
+                scheduledAppointments: serviceToSend?.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')),
+                pendingAppointments: serviceToSend?.pendingAppointments.map(pending => ({
+                    ...pending,
+                    datetime: moment(pending.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                })),
+            },
             date: moment(savedAppointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'),
         }
     } catch (error: any) {
@@ -95,6 +110,7 @@ export const confirmAppointment = async (req: Request, res: Response): Promise<v
         if (!appointment) return res.status(500).send({ error: "No se pudo crear el turno." })
 
         io.to(appointment.companyId!.toString()).emit("company:appointment-added", appointment)
+
         res.status(200).send({ data: appointment })
 
     } catch (error: any) {
@@ -274,23 +290,21 @@ const removeFromScheduledAndEnable = async (service: ServiceWithAppointments, ap
                 { new: true }
             ).lean()
         } else {
-            if (service.capacityPerShift > datesEqualToTheAppointment.length) {
-                const newAvailableAppointment = {
-                    datetime: appointment.date,
-                    capacity: service.capacityPerShift,
-                    taken: datesEqualToTheAppointment.length
-                }
-
-                const newAvailableAppointments = [...service.availableAppointments, newAvailableAppointment]
-
-                serviceToSend = await ServiceModel.findByIdAndUpdate(
-                    appointment.serviceId,
-                    {
-                        $set: { availableAppointments: newAvailableAppointments }
-                    },
-                    { new: true }
-                ).lean()
+            const newAvailableAppointment = {
+                datetime: appointment.date,
+                capacity: datesEqualToTheAppointment.length + 1,
+                taken: datesEqualToTheAppointment.length
             }
+
+            const newAvailableAppointments = [...service.availableAppointments, newAvailableAppointment]
+
+            serviceToSend = await ServiceModel.findByIdAndUpdate(
+                appointment.serviceId,
+                {
+                    $set: { availableAppointments: newAvailableAppointments }
+                },
+                { new: true }
+            ).lean()
         }
 
         return serviceToSend
@@ -341,9 +355,26 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
 
         if (!company) return res.status(500).send({ error: "Error al obtener empresa." })
 
-        io.to(company._id.toString()).emit("company:appointment-deleted", id)
-
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+
+        io.to(company._id.toString()).emit("company:appointment-deleted", {
+            appointment: {
+                ...appointment,
+                date: dateInString
+            },
+            service: {
+                ...serviceToSend,
+                availableAppointments: serviceToSend?.availableAppointments.map(app => ({
+                    ...app,
+                    datetime: moment(app.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                })),
+                pendingAppointments: serviceToSend?.pendingAppointments.map(pending => ({
+                    ...pending,
+                    datetime: moment(pending.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                })),
+                scheduledAppointments: serviceToSend?.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+            }
+        })
 
         const { htmlUser, textUser } = emailCancelAppointmentUser(
             company.name,
