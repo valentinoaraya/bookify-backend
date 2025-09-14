@@ -81,11 +81,16 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 }
             })
             const newScheduledAppointments = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+            const newPendingAppointments = service.pendingAppointments.map(pending => ({
+                ...pending,
+                datetime: moment(pending.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            }))
 
             return {
                 ...service,
                 availableAppointments: newAvailableAppointments,
-                scheduledAppointments: newScheduledAppointments
+                scheduledAppointments: newScheduledAppointments,
+                pendingAppointments: newPendingAppointments
             }
         })
 

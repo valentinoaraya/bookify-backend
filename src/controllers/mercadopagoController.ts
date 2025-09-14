@@ -2,7 +2,8 @@ import { Response, Request } from "express"
 import { CLIENT_ID_MP, CLIENT_SECRET_MP, REDIRECT_URL_MP } from "../config"
 import CompanyModel from "../models/Company"
 import ServiceModel from "../models/Service"
-import { markAppointmentAsPending } from "../utils/managePendingAppointments"
+import { markAppointmentAsPending, removePendingAppointment } from "../utils/managePendingAppointments"
+import { confirmAppointmentWebhook } from "./appointmentController"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -68,6 +69,12 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         const data = await response.json()
 
+        if (!data.init_point) {
+            await removePendingAppointment(serviceId, pendingId)
+            console.log(data)
+            return res.status(500).send({ error: "No se pudo reservar temporalmente el turno. Inténtelo de nuevo más tarde." })
+        }
+
         res.status(200).send({ init_point: data.init_point })
 
     } catch (error: any) {
@@ -132,5 +139,37 @@ export const generateOAuthURL = async (req: Request, res: Response): Promise<voi
     } catch (error: any) {
         console.error(error.message)
         res.status(500).send({ error: "Failed to generate OAuth Code." })
+    }
+}
+
+export const manageWebhooks = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { type, action, user_id } = req.body
+
+        if (type === "payment" && action === "payment.created") {
+            console.log("Notificación de pago recibida.")
+            await confirmAppointmentWebhook(req, res)
+        } else if (type === "mp-connect" && action === "application.deauthorized") {
+            console.log("Notificación de desautorización recibida.")
+
+            const empresa = await CompanyModel.findOne({ mp_user_id: user_id })
+
+            if (!empresa) return res.status(404).send({ error: "Empresa no encontrada." })
+
+            empresa.mp_access_token = ""
+            empresa.mp_refresh_token = ""
+            empresa.mp_user_id = ""
+            empresa.connectedWithMP = false
+
+            await empresa.save()
+
+            console.log(`Empresa ${empresa.name} desautorizada.`)
+        }
+
+        res.status(200).send({ data: "Received" })
+
+    } catch (error: any) {
+        console.error(error.message)
+        res.status(500).send({ error: "Failed to manage webhooks." })
     }
 }

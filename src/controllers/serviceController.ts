@@ -342,11 +342,17 @@ const formatServiceResponse = (updatedService: ServiceWithAppointments, appointm
         moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
     )
 
+    const pendingAppointmentsInString = updatedService.pendingAppointments.map(pending => ({
+        ...pending,
+        datetime: moment(pending.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+    }))
+
     return {
         service: {
             ...updatedService,
             availableAppointments: arrayAppointmentsInString,
-            scheduledAppointments: scheduledAppointmentsInString
+            scheduledAppointments: scheduledAppointmentsInString,
+            pendingAppointments: pendingAppointmentsInString
         },
         appointment: {
             ...appointmentToSend,

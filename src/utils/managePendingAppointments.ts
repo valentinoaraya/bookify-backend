@@ -34,6 +34,7 @@ export const markAppointmentAsPending = async (
             ...pendingApp,
             datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
         }))
+
         io.to(result.companyId.toString()).emit("newPendingAppointment", { ...result, pendingAppointments })
 
         return pendingId.toString();
