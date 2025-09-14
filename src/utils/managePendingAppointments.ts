@@ -2,6 +2,7 @@ import moment from "moment-timezone";
 import ServiceModel from "../models/Service";
 import cron from "node-cron";
 import mongoose from "mongoose";
+import { io } from "../index"
 
 export const markAppointmentAsPending = async (
     serviceId: string,
@@ -25,9 +26,18 @@ export const markAppointmentAsPending = async (
                 }
             },
             { new: true }
-        );
+        ).lean();
 
-        return result ? pendingId.toString() : null;
+        if (!result) return null
+
+        const pendingAppointments = result.pendingAppointments.map(pendingApp => ({
+            ...pendingApp,
+            datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+        }))
+
+        io.to(result.companyId.toString()).emit("newPendingAppointment", { ...result, pendingAppointments })
+
+        return pendingId.toString();
     } catch (error) {
         console.error('Error al marcar turno como pendiente:', error);
         return null;
@@ -47,12 +57,19 @@ export const cleanupExpiredPendingAppointments = async (): Promise<void> => {
                 pending => pending.expiresAt > now
             );
 
-            await ServiceModel.findByIdAndUpdate(
+            const serviceToSend = await ServiceModel.findByIdAndUpdate(
                 service._id,
                 {
                     $set: { pendingAppointments: validPendingAppointments }
-                }
-            );
+                },
+                { new: true }
+            ).lean();
+
+            const pendingAppointments = serviceToSend!.pendingAppointments.map(pendingApp => ({
+                ...pendingApp,
+                datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            }))
+            io.to(serviceToSend!.companyId.toString()).emit("newPendingAppointment", { ...serviceToSend, pendingAppointments })
         }
 
         console.log('Turnos pendientes expirados limpiados exitosamente');

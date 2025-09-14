@@ -8,6 +8,7 @@ import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
 import { startSendReminders } from "./utils/sendAppointmentReminders"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
 import { startCleanupPendingAppointments } from "./utils/managePendingAppointments"
+import { startRefreshMercadoPagoTokens } from "./utils/refreshMercadoPagoTokens"
 import mercadopagoRouter from "./routes/mercadopago.routes"
 import http from "http"
 import { Server } from "socket.io"
@@ -31,6 +32,7 @@ mongoose.connect(MONGOOSE_URL as string)
 startSendReminders()
 startCleanupAppointments()
 startCleanupPendingAppointments()
+startRefreshMercadoPagoTokens()
 
 app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
