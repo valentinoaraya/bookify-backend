@@ -201,6 +201,8 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
                     return res.status(500).send({ error: "No se pudo crear el turno." })
                 }
 
+                io.to(appointment.companyId!.toString()).emit("company:appointment-added", appointment)
+
                 const pendingRemoved = await removePendingAppointment(
                     serviceId,
                     pendingId
@@ -209,7 +211,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
                 if (pendingRemoved) {
                     console.log(`✅ Turno confirmado para ${dataUser.email} y removido de pendingAppointments`)
                 } else {
-                    console.log(`⚠️  Turno confirmado para ${dataUser.email} pero no se pudo remover de pendingAppointments`)
+                    console.log(`⚠️ Turno confirmado para ${dataUser.email} pero no se pudo remover de pendingAppointments`)
                 }
 
                 return res.status(200).send({ data: "Pago procesado y turno confirmado." })
