@@ -44,9 +44,9 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 }
             ],
             payer: {
-                name: name.split(' ')[0],
+                name: name,
                 email: email,
-                last_name: name.split(' ')[1],
+                last_name: lastName,
             },
             back_urls: {
                 success: "https://bookify-aedes.vercel.app/processingpayment",
@@ -104,12 +104,13 @@ export const getAccessTokenClient = async (req: Request, res: Response): Promise
 
         const data = await response.json()
 
-        const { access_token, refresh_token, user_id } = data;
+        const { access_token, refresh_token, user_id, expires_in } = data;
 
         await CompanyModel.findByIdAndUpdate(state, {
             mp_user_id: user_id,
             mp_access_token: access_token,
             mp_refresh_token: refresh_token,
+            token_expires_in: expires_in,
             connectedWithMP: true
         })
 
@@ -159,6 +160,7 @@ export const manageWebhooks = async (req: Request, res: Response): Promise<void 
             empresa.mp_access_token = ""
             empresa.mp_refresh_token = ""
             empresa.mp_user_id = ""
+            empresa.token_expires_in = 0
             empresa.connectedWithMP = false
 
             await empresa.save()

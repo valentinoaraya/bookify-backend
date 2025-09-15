@@ -15,6 +15,7 @@ const CompanySchema = new Schema({
     connectedWithMP: { type: Boolean, default: false },
     mp_access_token: { type: String, default: "" },
     mp_refresh_token: { type: String, default: "" },
+    token_expires_in: { type: Number, default: 0 },
     mp_user_id: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
