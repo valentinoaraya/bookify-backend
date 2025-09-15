@@ -13,7 +13,7 @@ const refreshMercadoPagoTokens = async (): Promise<void> => {
 
         const now = Date.now()
         const ONE_DAY_MS = 24 * 60 * 60 * 1000
-        const RENEW_AHEAD_DAYS = 180
+        const RENEW_AHEAD_DAYS = 7
 
         const dueSoon = companiesToUpdate.filter(company => {
             const tokenLifetimeMs = (company.token_expires_in || 0) * 1000
