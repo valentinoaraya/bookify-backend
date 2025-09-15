@@ -4,6 +4,7 @@ import CompanyModel from "../models/Company"
 import ServiceModel from "../models/Service"
 import { markAppointmentAsPending, removePendingAppointment } from "../utils/managePendingAppointments"
 import { confirmAppointmentWebhook } from "./appointmentController"
+import moment from "moment-timezone"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -23,7 +24,7 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         if (!empresa || !empresa.mp_access_token) return res.status(404).send({ error: "La empresa no está vinculada con Mercado Pago" })
 
-        const dateObj = new Date(date);
+        const dateObj = moment.tz(date, 'YYYY-MM-DD HH:mm', 'America/Argentina/Buenos_Aires').toDate();
         const userId = `${name}_${lastName}_${email}`;
         const pendingId = await markAppointmentAsPending(serviceId, dateObj, userId);
 
