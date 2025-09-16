@@ -167,10 +167,9 @@ export const manageWebhooks = async (req: Request, res: Response): Promise<void 
             await empresa.save()
 
             console.log(`Empresa ${empresa.name} desautorizada.`)
+
+            res.status(200).send({ data: "Received" })
         }
-
-        res.status(200).send({ data: "Received" })
-
     } catch (error: any) {
         console.error(error.message)
         res.status(500).send({ error: "Failed to manage webhooks." })
