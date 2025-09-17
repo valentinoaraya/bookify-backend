@@ -35,7 +35,7 @@ export const markAppointmentAsPending = async (
             datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
         }))
 
-        io.to(result.companyId.toString()).emit("newPendingAppointment", { ...result, pendingAppointments })
+        io.to(result.companyId.toString()).emit("company:service-updated", { ...result, pendingAppointments })
 
         return pendingId.toString();
     } catch (error) {
@@ -69,7 +69,7 @@ export const cleanupExpiredPendingAppointments = async (): Promise<void> => {
                 ...pendingApp,
                 datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
             }))
-            io.to(serviceToSend!.companyId.toString()).emit("newPendingAppointment", { ...serviceToSend, pendingAppointments })
+            io.to(serviceToSend!.companyId.toString()).emit("company:service-updated", { ...serviceToSend, pendingAppointments })
         }
 
         console.log('Turnos pendientes expirados limpiados exitosamente');
@@ -130,10 +130,22 @@ export const removePendingAppointment = async (
                 }
             },
             { new: true }
-        );
+        ).lean();
 
         if (result) {
             console.log(`✅ Turno removido de pendingAppointments con _id ${pendingId}`);
+            io.to(result.companyId!.toString()).emit("company:service-updated", {
+                ...result,
+                availableAppointments: result.availableAppointments.map(app => ({
+                    ...app,
+                    datetime: moment(app.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                })),
+                pendingAppointments: result.pendingAppointments.map(pending => ({
+                    ...pending,
+                    datetime: moment(pending.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+                })),
+                scheduledAppointments: result.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+            })
             return true;
         }
 
