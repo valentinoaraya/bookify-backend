@@ -65,11 +65,19 @@ export const cleanupExpiredPendingAppointments = async (): Promise<void> => {
                 { new: true }
             ).lean();
 
+            const availableAppointments = serviceToSend!.availableAppointments.map(app => ({
+                ...app,
+                datetime: moment(app.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            }))
+
+            const scheduledAppointments = serviceToSend!.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+
             const pendingAppointments = serviceToSend!.pendingAppointments.map(pendingApp => ({
                 ...pendingApp,
                 datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
             }))
-            io.to(serviceToSend!.companyId.toString()).emit("company:service-updated", { ...serviceToSend, pendingAppointments })
+
+            io.to(serviceToSend!.companyId.toString()).emit("company:service-updated", { ...serviceToSend, pendingAppointments, availableAppointments, scheduledAppointments })
         }
 
         console.log('Turnos pendientes expirados limpiados exitosamente');
