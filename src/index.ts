@@ -5,7 +5,6 @@ import companiesRouter from "./routes/companies.routes"
 import cors from "cors"
 import servicesRouter from "./routes/services.routes"
 import { PORT, MONGOOSE_URL, FRONTEND_URL } from "./config"
-import { startSendReminders } from "./utils/sendAppointmentReminders"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
 import { startCleanupPendingAppointments } from "./utils/managePendingAppointments"
 import { startRefreshMercadoPagoTokens } from "./utils/refreshMercadoPagoTokens"
@@ -29,7 +28,6 @@ mongoose.connect(MONGOOSE_URL as string)
         console.log("Failed to connect to MongoDB Atlas ", error)
     })
 
-startSendReminders()
 startCleanupAppointments()
 startCleanupPendingAppointments()
 startRefreshMercadoPagoTokens()

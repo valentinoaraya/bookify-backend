@@ -1,5 +1,10 @@
 import mongoose, { Schema } from "mongoose";
 
+const reminderSchema = new Schema({
+    hoursBefore: { type: Number, required: true },
+    services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }]
+})
+
 const CompanySchema = new Schema({
     name: { type: String, required: true },
     company_id: { type: String, required: true, unique: true },
@@ -17,6 +22,7 @@ const CompanySchema = new Schema({
     mp_refresh_token: { type: String, default: "" },
     token_expires_in: { type: Number, default: 0 },
     mp_user_id: { type: String, default: "" },
+    reminders: [reminderSchema],
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

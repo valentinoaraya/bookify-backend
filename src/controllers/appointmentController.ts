@@ -11,6 +11,8 @@ import { ServiceWithAppointments, UserData, UserInputAppointment } from "../type
 import { formatDate } from "../utils/formatDate";
 import { isAppointmentAvailable, removePendingAppointment } from "../utils/managePendingAppointments";
 import { io } from "../index"
+import { scheduleRemindersForAppointment } from "../utils/scheduleRemindersForAppointment";
+import { reminderQueue } from "../queues/reminderQueue";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string, totalPaidAmount?: number) => {
     try {
@@ -74,6 +76,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 
         await sendEmail(dataUser.email, "Turno confirmado con éxito", textUser, htmlUser)
         await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
+
+        await scheduleRemindersForAppointment(savedAppointment._id.toString())
 
         return {
             ...appointmentToSend,
@@ -316,6 +320,16 @@ const removeFromScheduledAndEnable = async (service: ServiceWithAppointments, ap
     }
 }
 
+const removeRemindersJobs = async (remindersJobs: string[]) => {
+    for (const jobId of remindersJobs) {
+        const job = await reminderQueue.getJob(jobId)
+        if (job) {
+            await job.remove()
+            console.log(`🗑 Job ${jobId} eliminado`)
+        }
+    }
+}
+
 export const cancelAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         if (!req.user) return res.status(500).send({ error: "Usuario no encontrado." })
@@ -350,6 +364,8 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
         await AppointmentModel.findByIdAndDelete(id)
 
         const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
+
+        await removeRemindersJobs(appointment.reminderJobs || [])
 
         const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $pull: { scheduledAppointments: appointment._id }
@@ -455,6 +471,8 @@ export const deleteAppointmentProcess = async (idAppointment: string, companyNam
         }
 
         await AppointmentModel.findByIdAndDelete(idAppointment)
+
+        await removeRemindersJobs(appointment.reminderJobs || [])
 
         const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
 

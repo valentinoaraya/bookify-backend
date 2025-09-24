@@ -80,6 +80,10 @@ export interface PopulatedAppointment {
 export interface Company extends CompanyInputs {
     _id: Types.ObjectId
     services: Types.ObjectId[]
+    reminders: {
+        hoursBefore: number
+        services: Types.ObjectId[]
+    }[]
 }
 
 export type CompanyWithoutPassword = Omit<Company, "password">
