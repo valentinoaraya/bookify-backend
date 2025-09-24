@@ -176,7 +176,8 @@ export const companyToSend = async (id: string): Promise<CompanyWithoutPassword>
         street: company.street,
         number: company.number,
         phone: company.phone,
-        email: company.email as Email
+        email: company.email as Email,
+        reminders: []
     }
 
     return newCompany

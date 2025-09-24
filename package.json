@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "start": "node build/index.js",
+    "worker": "ts-node-dev src/workers/reminderWorker.ts",
+    "reset-queue": "ts-node src/queues/clearReminderQueue.ts",
     "build": "tsc",
     "migrate:pending": "ts-node src/utils/migratePendingAppointments.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -28,9 +30,11 @@
   "dependencies": {
     "bcrypt": "^5.1.1",
     "brevo": "^1.0.0",
+    "bullmq": "^5.58.7",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "express": "^4.19.2",
+    "ioredis": "^5.8.0",
     "jsonwebtoken": "^9.0.2",
     "mercadopago": "^2.3.0",
     "moment": "^2.30.1",

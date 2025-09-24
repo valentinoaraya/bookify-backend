@@ -9,6 +9,7 @@ const AppointmentSchema = new Schema({
     dni: { type: String, required: true },
     phone: { type: String, required: true },
     date: { type: Date, required: true },
+    reminderJobs: [{ type: String }],
     paymentId: { type: String },
     totalPaidAmount: { type: Number },
     createdAt: { type: Date, default: Date.now },

@@ -28,8 +28,8 @@ const deleteOldAppointments = async () => {
         })
 
         const resultAvailableAppointemnts = await ServiceModel.updateMany(
-            { availableAppointments: { $lt: todayDate } },
-            { $pull: { availableAppointments: { $lt: todayDate } } }
+            { "availableAppointments.datetime": { $lt: todayDate } },
+            { $pull: { availableAppointments: { datetime: { $lt: todayDate } } } }
         )
         await ServiceModel.updateMany(
             { scheduledAppointments: { $lt: todayDate } },
@@ -45,7 +45,7 @@ const deleteOldAppointments = async () => {
 }
 
 export const startCleanupAppointments = () => {
-    cron.schedule("0 0 * * *", async () => {
+    cron.schedule("22 12 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
     })

@@ -8,7 +8,7 @@ import { formatDate } from "./formatDate"
 const sendAppointmentReminders = async () => {
     try {
         console.log("🔍 Buscando turnos para enviar recordatorios...")
-
+        
         // Obtener todas las empresas con sus configuraciones de recordatorios
         const companies = await CompanyModel.find({ reminders: { $exists: true, $ne: [] } })
             .populate('reminders.services', 'title')
@@ -22,17 +22,17 @@ const sendAppointmentReminders = async () => {
 
         for (const company of companies) {
             console.log(`🏢 Procesando empresa: ${company.name}`)
-
+            
             for (const reminderConfig of company.reminders) {
                 const hoursBefore = reminderConfig.hoursBefore
                 const targetServices = reminderConfig.services.map(service => service._id)
-
+                
                 // Calcular el rango de tiempo para este recordatorio
                 const reminderTimeStart = moment().tz('America/Argentina/Buenos_Aires')
                     .add(hoursBefore, 'hours')
                     .startOf('hour')
                     .toDate()
-
+                
                 const reminderTimeEnd = moment().tz('America/Argentina/Buenos_Aires')
                     .add(hoursBefore, 'hours')
                     .endOf('hour')
@@ -46,8 +46,8 @@ const sendAppointmentReminders = async () => {
                     serviceId: { $in: targetServices },
                     date: { $gte: reminderTimeStart, $lte: reminderTimeEnd }
                 })
-                    .populate<{ serviceId: { title: string } }>("serviceId", "title")
-                    .populate<{ companyId: { name: string } }>("companyId", "name")
+                .populate<{ serviceId: { title: string } }>("serviceId", "title")
+                .populate<{ companyId: { name: string } }>("companyId", "name")
 
                 console.log(`📅 Encontrados ${appointments.length} turnos para recordar`)
 
@@ -55,7 +55,7 @@ const sendAppointmentReminders = async () => {
                 for (const appointment of appointments) {
                     const appointmentDate = moment(appointment.date).tz('America/Argentina/Buenos_Aires')
                     const dateInString = appointmentDate.format('YYYY-MM-DD HH:mm')
-
+                    
                     // Determinar el mensaje según las horas antes
                     let timeMessage = ""
                     if (hoursBefore === 24) {
@@ -68,8 +68,8 @@ const sendAppointmentReminders = async () => {
                         timeMessage = `en ${hoursBefore} horas`
                     }
 
-                    const subject = hoursBefore === 24
-                        ? "🔔 Recordatorio de tu turno"
+                    const subject = hoursBefore === 24 
+                        ? "🔔 Recordatorio de tu turno" 
                         : `⏰ Tu turno es ${timeMessage}`
 
                     const textMessage = `Hola ${appointment.name},\n
@@ -91,7 +91,7 @@ const sendAppointmentReminders = async () => {
                             textMessage,
                             htmlMessage
                         )
-
+                        
                         console.log(`✅ Recordatorio enviado a ${appointment.email} para turno ${timeMessage}`)
                         totalRemindersSent++
                     } catch (emailError) {
@@ -109,7 +109,7 @@ const sendAppointmentReminders = async () => {
 
 export const startSendReminders = () => {
     // Ejecutar cada hora para cubrir todos los recordatorios posibles
-    cron.schedule("*/5 * * * *", async () => {
+    cron.schedule("0 * * * *", async () => {
         console.log("⏳ Ejecutando tarea de recordatorio de turnos...");
         await sendAppointmentReminders()
     })

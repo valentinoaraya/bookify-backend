@@ -61,7 +61,9 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 populate: [
                     { path: "serviceId", model: "Service" },
                 ]
-            }).lean()
+            })
+            .populate("reminders.services", "title")
+            .lean()
 
         if (!newCompany) return res.status(400).send({ error: "No se encontró empresa." })
 
@@ -105,8 +107,10 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 street: newCompany.street,
                 number: newCompany.number,
                 scheduledAppointments: scheduledAppointmentsWithDateInString,
+                reminders: newCompany.reminders,
                 services: servicesCompanyWithDateInString,
-                connectedWithMP: newCompany.connectedWithMP
+                connectedWithMP: newCompany.connectedWithMP,
+                company_id: newCompany.company_id
             }
         })
 
@@ -119,22 +123,36 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
     try {
         const company = req.company
         const data = req.body
+
+        const cleanedData = {
+            name: (data.name as string)?.trim(),
+            phone: (data.phone as string)?.trim(),
+            email: (data.email as string)?.trim(),
+            city: (data.city as string)?.trim(),
+            street: (data.street as string)?.trim(),
+            number: data.number,
+            company_id: (data.company_id as string)?.trim(),
+            reminders: data.reminders
+        }
+
         const updatedCompany = await CompanyModel.findByIdAndUpdate(
             company?.id,
-            { $set: data },
+            { $set: cleanedData },
             { new: true }
-        )
+        ).populate("reminders.services", "title").lean()
 
         if (!updatedCompany) return res.status(400).send({ error: "No se encontró la empresa" })
 
         const fullData = {
             type: "company",
             name: updatedCompany.name,
+            company_id: updatedCompany.company_id,
             email: updatedCompany.email,
             phone: updatedCompany.phone,
             city: updatedCompany.city,
             street: updatedCompany.street,
-            number: updatedCompany.number
+            number: updatedCompany.number,
+            reminders: updatedCompany.reminders,
         }
 
         res.status(200).send({ data: fullData })
