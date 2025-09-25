@@ -23,6 +23,8 @@ const CompanySchema = new Schema({
     token_expires_in: { type: Number, default: 0 },
     mp_user_id: { type: String, default: "" },
     reminders: [reminderSchema],
+    cancellationAnticipationHours: { type: Number, default: 24 },
+    bookingAnticipationHours: { type: Number, default: 1 },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

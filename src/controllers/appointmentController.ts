@@ -231,6 +231,34 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
     }
 }
 
+export const checkOrderTime = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { companyId, date } = req.body
+
+        const company = await CompanyModel.findById(companyId)
+        if (!company) return res.status(500).send({ error: "No se encontró la empresa." })
+
+        const bookingHour = moment(date).subtract(company.bookingAnticipationHours, "hours")
+        const now = moment()
+
+        let messageHours = ""
+        if (company.bookingAnticipationHours > 24) {
+            messageHours = `${company.bookingAnticipationHours / 24} ${company.bookingAnticipationHours / 24 === 1 ? "día" : "días"}`
+        } else {
+            messageHours = `${company.bookingAnticipationHours} ${company.bookingAnticipationHours === 1 ? "hora" : "horas"}`
+        }
+
+        if (now.isSameOrAfter(bookingHour)) return res.status(400).send({
+            error: `No es posible agendar el turno en este momento. Las agendas se realizan ${messageHours} antes del horario del turno.`
+        })
+
+        res.status(200).send({ data: "available" })
+
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
 const refund = async (paymentId: string, accessToken: string, amount?: number) => {
     try {
 
@@ -336,24 +364,32 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
 
         const { id } = req.params
         const appointment = await AppointmentModel.findById(id).lean()
-
         if (!appointment) return res.status(400).send({ error: "No se encontró el turno." })
+
+        const company = await CompanyModel.findById(appointment.companyId)
+        if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
 
         const now = moment()
         const appointmentDate = moment(appointment.date)
 
         const diffHours = appointmentDate.diff(now, 'hours')
 
-        if (diffHours < 24) return res.status(400).send({ error: "No es posible cancelar el turno con menos de un día de anticipación." })
+        let messageHours = ""
+        if (company.cancellationAnticipationHours > 24) {
+            messageHours = `${company.cancellationAnticipationHours / 24} ${company.cancellationAnticipationHours / 24 === 1 ? "día" : "días"}`
+        } else {
+            messageHours = `${company.cancellationAnticipationHours} ${company.cancellationAnticipationHours === 1 ? "hora" : "horas"}`
+        }
+
+        if (diffHours < company.cancellationAnticipationHours) return res.status(400).send({
+            error: `No es posible cancelar el turno con menos de ${messageHours} de anticipación.`
+        })
 
         const service = await ServiceModel.findById(appointment.serviceId).lean()
 
         if (!service) return res.status(400).send({ error: "Servicio no encontrado." })
 
         if (appointment.paymentId && appointment.totalPaidAmount) {
-            const company = await CompanyModel.findById(appointment.companyId)
-            if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
-
             const amount = appointment.totalPaidAmount * 0.5
 
             const refundResponse = await refund(appointment.paymentId as string, company.mp_access_token, amount)
@@ -367,11 +403,9 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
 
         await removeRemindersJobs(appointment.reminderJobs || [])
 
-        const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
+        await CompanyModel.findByIdAndUpdate(appointment.companyId, {
             $pull: { scheduledAppointments: appointment._id }
         })
-
-        if (!company) return res.status(500).send({ error: "Error al obtener empresa." })
 
         const dateInString = moment(appointment.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
 

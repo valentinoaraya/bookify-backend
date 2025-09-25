@@ -30,12 +30,19 @@ export const markAppointmentAsPending = async (
 
         if (!result) return null
 
+        const availableAppointments = result.availableAppointments.map(app => ({
+            ...app,
+            datetime: moment(app.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+        }))
+
         const pendingAppointments = result.pendingAppointments.map(pendingApp => ({
             ...pendingApp,
             datetime: moment(pendingApp.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
         }))
 
-        io.to(result.companyId.toString()).emit("company:service-updated", { ...result, pendingAppointments })
+        const scheduledAppointments = result.scheduledAppointments.map(app => moment(app).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+
+        io.to(result.companyId.toString()).emit("company:service-updated", { ...result, pendingAppointments, availableAppointments, scheduledAppointments })
 
         return pendingId.toString();
     } catch (error) {

@@ -84,6 +84,8 @@ export interface Company extends CompanyInputs {
         hoursBefore: number
         services: Types.ObjectId[]
     }[]
+    cancellationAnticipationHours: number
+    bookingAnticipationHours: number
 }
 
 export type CompanyWithoutPassword = Omit<Company, "password">
