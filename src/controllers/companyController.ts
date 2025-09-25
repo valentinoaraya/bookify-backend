@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
 import { createToken, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
-import { type PopulatedAppointment, type Email, type ServiceWithAppointments } from "../types";
+import { type Email } from "../types";
 import moment from "moment-timezone";
 import { ADMIN_API_KEY } from "../config";
 
@@ -54,63 +54,49 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
     try {
         const company = req.company
 
-        const newCompany = await CompanyModel.findById(company?.id)
+        const companyDB = await CompanyModel.findById(company?.id)
             .populate("services")
-            .populate({
-                path: "scheduledAppointments",
-                populate: [
-                    { path: "serviceId", model: "Service" },
-                ]
-            })
             .populate("reminders.services", "title")
+            .populate("scheduledAppointments")
             .lean()
 
-        if (!newCompany) return res.status(400).send({ error: "No se encontró empresa." })
+        if (!companyDB) return res.status(400).send({ error: "No se encontró la empresa" })
 
-        const scheduledAppointmentsCompany = newCompany.scheduledAppointments as unknown as PopulatedAppointment[]
-        const servicesCompany = newCompany.services as unknown as ServiceWithAppointments[]
-
-        const scheduledAppointmentsWithDateInString = scheduledAppointmentsCompany.map(app => {
-            const dateInString = moment(app.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-            return { ...app, date: dateInString }
-        })
-
-        const servicesCompanyWithDateInString = servicesCompany.map(service => {
-            const newAvailableAppointments = service.availableAppointments.map(appointment => {
-                return {
-                    ...appointment,
-                    datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-                }
-            })
-            const newScheduledAppointments = service.scheduledAppointments.map(date => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
-            const newPendingAppointments = service.pendingAppointments.map(pending => ({
+        const servicesCompanyWithDateInString = companyDB.services.map((service: any) => ({
+            ...service,
+            availableAppointments: service.availableAppointments?.map((appointment: any) => ({
+                ...appointment,
+                datetime: moment(appointment.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+            })),
+            pendingAppointments: service.pendingAppointments?.map((pending: any) => ({
                 ...pending,
                 datetime: moment(pending.datetime).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
-            }))
+            })),
+            scheduledAppointments: service.scheduledAppointments?.map((date: any) => moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm'))
+        }))
 
-            return {
-                ...service,
-                availableAppointments: newAvailableAppointments,
-                scheduledAppointments: newScheduledAppointments,
-                pendingAppointments: newPendingAppointments
-            }
-        })
+        const scheduledAppointmentsWithDateInString = companyDB.scheduledAppointments.map((app: any) => ({
+            ...app,
+            date: moment(app.date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
+        }))
 
-        res.status(200).send({
+        return res.status(200).send({
             data: {
                 type: "company",
-                _id: newCompany._id,
-                name: newCompany.name,
-                phone: newCompany.phone,
-                email: newCompany.email,
-                city: newCompany.city,
-                street: newCompany.street,
-                number: newCompany.number,
+                _id: companyDB._id,
+                name: companyDB.name,
+                phone: companyDB.phone,
+                email: companyDB.email,
+                city: companyDB.city,
+                street: companyDB.street,
+                number: companyDB.number,
                 scheduledAppointments: scheduledAppointmentsWithDateInString,
-                reminders: newCompany.reminders,
+                reminders: companyDB.reminders,
                 services: servicesCompanyWithDateInString,
-                connectedWithMP: newCompany.connectedWithMP,
-                company_id: newCompany.company_id
+                connectedWithMP: companyDB.connectedWithMP,
+                company_id: companyDB.company_id,
+                cancellationAnticipationHours: companyDB.cancellationAnticipationHours,
+                bookingAnticipationHours: companyDB.bookingAnticipationHours
             }
         })
 
@@ -132,12 +118,19 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             street: (data.street as string)?.trim(),
             number: data.number,
             company_id: (data.company_id as string)?.trim(),
-            reminders: data.reminders
+            reminders: data.reminders,
+            cancellationAnticipationHours: typeof data.cancellationAnticipationHours === 'number' ? data.cancellationAnticipationHours : undefined,
+            bookingAnticipationHours: typeof data.bookingAnticipationHours === 'number' ? data.bookingAnticipationHours : undefined,
         }
+
+        const cleanedSet: any = {}
+        Object.entries(cleanedData).forEach(([key, value]) => {
+            if (value !== undefined) cleanedSet[key] = value
+        })
 
         const updatedCompany = await CompanyModel.findByIdAndUpdate(
             company?.id,
-            { $set: cleanedData },
+            { $set: cleanedSet },
             { new: true }
         ).populate("reminders.services", "title").lean()
 
@@ -153,6 +146,8 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             street: updatedCompany.street,
             number: updatedCompany.number,
             reminders: updatedCompany.reminders,
+            cancellationAnticipationHours: updatedCompany.cancellationAnticipationHours,
+            bookingAnticipationHours: updatedCompany.bookingAnticipationHours,
         }
 
         res.status(200).send({ data: fullData })
@@ -168,22 +163,10 @@ export const getCompanyToUser = async (req: Request, res: Response): Promise<voi
             .populate("services")
             .lean()
 
-        if (!company) return res.status(400).send({ error: "No se encontró la empresa" })
+        if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
 
-        res.status(200).send({
-            data: {
-                type: "company",
-                _id: company._id,
-                name: company.name,
-                phone: company.phone,
-                email: company.email,
-                city: company.city,
-                street: company.street,
-                number: company.number,
-                services: company.services,
-                connectedWithMP: company.connectedWithMP
-            }
-        })
+        res.status(200).send({ data: company })
+
     } catch (error: any) {
         res.status(500).send({ error: error.message })
     }

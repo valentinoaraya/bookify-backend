@@ -177,7 +177,9 @@ export const companyToSend = async (id: string): Promise<CompanyWithoutPassword>
         number: company.number,
         phone: company.phone,
         email: company.email as Email,
-        reminders: []
+        reminders: [],
+        bookingAnticipationHours: 1,
+        cancellationAnticipationHours: 24
     }
 
     return newCompany
