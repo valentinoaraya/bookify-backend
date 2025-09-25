@@ -56,8 +56,13 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
 
         const companyDB = await CompanyModel.findById(company?.id)
             .populate("services")
+            .populate({
+                path: "scheduledAppointments",
+                populate: [
+                    { path: "serviceId", model: "Service" },
+                ]
+            })
             .populate("reminders.services", "title")
-            .populate("scheduledAppointments")
             .lean()
 
         if (!companyDB) return res.status(400).send({ error: "No se encontró la empresa" })
