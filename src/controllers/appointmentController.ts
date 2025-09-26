@@ -399,7 +399,7 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
         }
 
         await AppointmentModel.findByIdAndUpdate(id, {
-            $set: { status: "cancelled", cancelledBy: "client" }
+            $set: { status: "cancelled", cancelledBy: "client", reminderJobs: [] }
         })
 
         const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
@@ -508,7 +508,7 @@ export const deleteAppointmentProcess = async (idAppointment: string, companyNam
         }
 
         await AppointmentModel.findByIdAndUpdate(idAppointment, {
-            $set: { status: "cancelled", cancelledBy: "company" }
+            $set: { status: "cancelled", cancelledBy: "company", reminderJobs: [] }
         })
 
         await removeRemindersJobs(appointment.reminderJobs || [])
@@ -664,7 +664,10 @@ export const finishAppointment = async (req: Request, res: Response): Promise<vo
         const { id } = req.params
 
         const appointment = await AppointmentModel.findByIdAndUpdate(id, {
-            $set: { status: "finished" }
+            $set: {
+                status: "finished",
+                reminderJobs: []
+            }
         }, { new: true }).lean()
 
         if (!appointment) return res.status(400).send({ error: "No se pudo finalizar el turno." })
