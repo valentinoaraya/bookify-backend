@@ -13,6 +13,7 @@ import { isAppointmentAvailable, removePendingAppointment } from "../utils/manag
 import { io } from "../index"
 import { scheduleRemindersForAppointment } from "../utils/scheduleRemindersForAppointment";
 import { reminderQueue } from "../queues/reminderQueue";
+import mongoose from "mongoose";
 
 const createAppointment = async (companyId: string, serviceId: string, date: Date, dataUser: UserData, paymentId?: string, totalPaidAmount?: number) => {
     try {
@@ -397,7 +398,9 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             if (!refundResponse) return res.status(400).send({ error: "No se pudo procesar la devolución." })
         }
 
-        await AppointmentModel.findByIdAndDelete(id)
+        await AppointmentModel.findByIdAndUpdate(id, {
+            $set: { status: "cancelled", cancelledBy: "client" }
+        })
 
         const serviceToSend = await removeFromScheduledAndEnable(service as ServiceWithAppointments, appointment as unknown as UserInputAppointment)
 
@@ -504,7 +507,9 @@ export const deleteAppointmentProcess = async (idAppointment: string, companyNam
             if (!refundResponse) throw new Error("No se pudo procesar la devolución.")
         }
 
-        await AppointmentModel.findByIdAndDelete(idAppointment)
+        await AppointmentModel.findByIdAndUpdate(idAppointment, {
+            $set: { status: "cancelled", cancelledBy: "company" }
+        })
 
         await removeRemindersJobs(appointment.reminderJobs || [])
 
@@ -596,7 +601,8 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
 
         const historicalAppointments = await AppointmentModel.find({
             companyId: companyId,
-            date: { $lt: now }
+            date: { $lt: now },
+            status: { $ne: "scheduled" }
         })
             .populate('serviceId')
             .populate('companyId')
@@ -637,10 +643,10 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 },
                 date: appointment.date,
                 formattedDate: formattedDate,
-                paymentId: appointment.paymentId,
-                status: determineAppointmentStatus(appointment.date, appointment.paymentId),
+                totalPaidAmount: appointment.totalPaidAmount,
+                status: appointment.status,
                 price: appointment.serviceId.price || 0,
-                notes: ""
+                cancelledBy: appointment.cancelledBy
             };
         }).filter(appointment => appointment !== null);
 
@@ -653,49 +659,24 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
     }
 }
 
-const determineAppointmentStatus = (
-    appointmentDate: Date,
-    paymentId?: string
-): "completed" | "cancelled" | "no-show" | "upcoming" => {
-    const now = new Date()
-    const appointmentTime = new Date(appointmentDate)
-
-    if (appointmentTime > now) {
-        return "upcoming"
-    }
-
-    if (paymentId) {
-        return "completed"
-    }
-
-    return "no-show"
-}
-
-export const testCompanyData = async (req: Request, res: Response): Promise<void | Response> => {
+export const finishAppointment = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-        const { companyId } = req.params;
+        const { id } = req.params
 
-        const company = await CompanyModel.findById(companyId);
-        const totalAppointments = await AppointmentModel.countDocuments({ companyId });
-        console.log('Total appointments for company:', totalAppointments);
+        const appointment = await AppointmentModel.findByIdAndUpdate(id, {
+            $set: { status: "finished" }
+        }, { new: true }).lean()
 
-        const appointmentsWithPopulate = await AppointmentModel.find({ companyId })
-            .populate('serviceId')
-            .populate('companyId')
-            .limit(5);
+        if (!appointment) return res.status(400).send({ error: "No se pudo finalizar el turno." })
 
-        const services = await ServiceModel.find({});
+        const company = await CompanyModel.findByIdAndUpdate(appointment.companyId, {
+            $pull: { scheduledAppointments: new mongoose.Types.ObjectId(id) }
+        })
 
-        res.status(200).send({
-            company: company ? { id: company._id, name: company.name } : null,
-            totalAppointments,
-            sampleAppointments: appointmentsWithPopulate.length,
-            totalServices: services.length,
-            message: 'Check console for detailed logs'
-        });
+        if (!company) return res.status(400).send({ error: "No se pudo eliminar el turno de 'agendados'." })
 
+        res.status(200).send({ data: appointment })
     } catch (error: any) {
         res.status(500).send({ error: error.message });
     }
 }
-
