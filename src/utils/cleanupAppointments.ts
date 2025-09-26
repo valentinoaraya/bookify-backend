@@ -9,7 +9,8 @@ const deleteOldAppointments = async () => {
         const todayString = moment().tz("America/Argentina/Buenos_Aires").format("YYYY-MM-DD");
         console.log(`✏️  Actualizando turnos anteriores a ${todayString}...`)
 
-        const todayDate = moment.tz(todayString, "YYYY-MM-DD", 'America/Argentina/Buenos_Aires').toDate()
+        const todayDate = moment().tz('America/Argentina/Buenos_Aires').toDate()
+        console.log(todayDate)
 
         const results = await AppointmentModel.find({
             date: { $lt: todayDate }
@@ -19,7 +20,7 @@ const deleteOldAppointments = async () => {
             const appointmentIds = results.map(app => app._id)
             await CompanyModel.updateMany(
                 { scheduledAppointments: { $in: appointmentIds } },
-                { $pull: { scheduledAppointments: { $in: appointmentIds } } }
+                { $pullAll: { scheduledAppointments: appointmentIds } }
             )
         }
 
@@ -29,7 +30,10 @@ const deleteOldAppointments = async () => {
                 status: "scheduled"
             },
             {
-                $set: { status: "pending_action" }
+                $set: {
+                    status: "pending_action",
+                    reminderJobs: []
+                }
             }
         )
 
