@@ -7,7 +7,7 @@ import CompanyModel from "../models/Company"
 const deleteOldAppointments = async () => {
     try {
         const todayString = moment().tz("America/Argentina/Buenos_Aires").format("YYYY-MM-DD");
-        console.log(`🗑️  Eliminando turnos anteriores a ${todayString}...`)
+        console.log(`✏️  Actualizando turnos anteriores a ${todayString}...`)
 
         const todayDate = moment.tz(todayString, "YYYY-MM-DD", 'America/Argentina/Buenos_Aires').toDate()
 
@@ -23,9 +23,15 @@ const deleteOldAppointments = async () => {
             )
         }
 
-        const resultScheduledAppointemnts = await AppointmentModel.deleteMany({
-            date: { $lt: todayDate }
-        })
+        const resultScheduledAppointemnts = await AppointmentModel.updateMany(
+            {
+                date: { $lt: todayDate },
+                status: "scheduled"
+            },
+            {
+                $set: { status: "pending_action" }
+            }
+        )
 
         const resultAvailableAppointemnts = await ServiceModel.updateMany(
             { "availableAppointments.datetime": { $lt: todayDate } },
@@ -36,7 +42,7 @@ const deleteOldAppointments = async () => {
             { $pull: { scheduledAppointments: { $lt: todayDate } } }
         )
 
-        console.log(`🗑️  ${resultScheduledAppointemnts.deletedCount} turnos agendados eliminados.`)
+        console.log(`✏️  ${resultScheduledAppointemnts.modifiedCount} turnos agendados editados.`)
         console.log(`🗑️  ${resultAvailableAppointemnts.modifiedCount > 0 ? "Turnos sin agendar eliminados." : "No habían turnos sin agendar para eliminar."} `)
 
     } catch (error: any) {
@@ -45,7 +51,7 @@ const deleteOldAppointments = async () => {
 }
 
 export const startCleanupAppointments = () => {
-    cron.schedule("22 12 * * *", async () => {
+    cron.schedule("0 0 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
     })
