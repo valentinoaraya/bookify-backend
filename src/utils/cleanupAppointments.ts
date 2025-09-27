@@ -58,5 +58,9 @@ export const startCleanupAppointments = () => {
     cron.schedule("0 0 * * *", async () => {
         console.log("⏳ Ejecutando eliminación de turnos pasados...")
         await deleteOldAppointments()
-    })
+    },
+        {
+            timezone: "America/Argentina/Buenos_Aires"
+        }
+    )
 }

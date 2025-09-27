@@ -83,7 +83,11 @@ export const startRefreshMercadoPagoTokens = (): void => {
     cron.schedule("0 2 * * *", async () => {
         console.log("⏰ Ejecutando actualización automática de tokens de Mercado Pago...")
         await refreshMercadoPagoTokens()
-    })
+    },
+        {
+            timezone: "America/Argentina/Buenos_Aires"
+        }
+    )
 
     console.log("�� Tarea programada de actualización de tokens configurada para las 2:00 AM diarias")
 }
