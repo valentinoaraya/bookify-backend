@@ -8,7 +8,7 @@ const AppointmentSchema = new Schema({
     email: { type: String, required: true },
     dni: { type: String, required: true },
     phone: { type: String, required: true },
-    status: { type: String, enum: ["scheduled", "finished", "cancelled", "pending_action"], default: "scheduled" },
+    status: { type: String, enum: ["scheduled", "finished", "cancelled", "pending_action", "did_not_attend"], default: "scheduled" },
     cancelledBy: { type: String, enum: ["company", "client", "null"], default: "null" },
     date: { type: Date, required: true },
     reminderJobs: [{ type: String }],

@@ -27,7 +27,6 @@ const sendAppointmentReminders = async () => {
                 const hoursBefore = reminderConfig.hoursBefore
                 const targetServices = reminderConfig.services.map(service => service._id)
 
-                // Calcular el rango de tiempo para este recordatorio
                 const reminderTimeStart = moment().tz('America/Argentina/Buenos_Aires')
                     .add(hoursBefore, 'hours')
                     .startOf('hour')
@@ -40,7 +39,6 @@ const sendAppointmentReminders = async () => {
 
                 console.log(`⏰ Buscando turnos ${hoursBefore}h antes (${moment(reminderTimeStart).format('YYYY-MM-DD HH:mm')})`)
 
-                // Buscar turnos que coincidan con el tiempo y servicios del recordatorio
                 const appointments = await AppointmentModel.find({
                     companyId: company._id,
                     serviceId: { $in: targetServices },
@@ -51,12 +49,10 @@ const sendAppointmentReminders = async () => {
 
                 console.log(`📅 Encontrados ${appointments.length} turnos para recordar`)
 
-                // Enviar recordatorios para estos turnos
                 for (const appointment of appointments) {
                     const appointmentDate = moment(appointment.date).tz('America/Argentina/Buenos_Aires')
                     const dateInString = appointmentDate.format('YYYY-MM-DD HH:mm')
 
-                    // Determinar el mensaje según las horas antes
                     let timeMessage = ""
                     if (hoursBefore === 24) {
                         timeMessage = "mañana"
@@ -108,7 +104,6 @@ const sendAppointmentReminders = async () => {
 }
 
 export const startSendReminders = () => {
-    // Ejecutar cada hora para cubrir todos los recordatorios posibles
     cron.schedule("*/5 * * * *", async () => {
         console.log("⏳ Ejecutando tarea de recordatorio de turnos...");
         await sendAppointmentReminders()
