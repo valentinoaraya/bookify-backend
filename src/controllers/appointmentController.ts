@@ -75,8 +75,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
             dateInString.split(' ')[1]
         )
 
-        await sendEmail(dataUser.email, "Turno confirmado con éxito", textUser, htmlUser)
-        await sendEmail(company.email, "Nuevo turno agendado", textCompany, htmlCompany)
+        await sendEmail(dataUser.email, "✅ Turno confirmado con éxito", textUser, htmlUser)
+        await sendEmail(company.email, "📅 Nuevo turno agendado", textCompany, htmlCompany)
 
         await scheduleRemindersForAppointment(savedAppointment._id.toString())
 
@@ -187,7 +187,7 @@ export const confirmAppointmentWebhook = async (req: Request, res: Response): Pr
                             newDate.format('HH:mm')
                         )
 
-                        await sendEmail(dataUser.email, "Turno no disponible - Reembolso procesado", textUser, htmlUser)
+                        await sendEmail(dataUser.email, "❌ Turno no disponible - Reembolso procesado", textUser, htmlUser)
 
                         return res.status(200).send({
                             data: "Pago aprobado pero turno no disponible. Reembolso procesado."
@@ -447,8 +447,8 @@ export const cancelAppointment = async (req: Request, res: Response): Promise<vo
             dateInString.split(' ')[1],
         )
 
-        await sendEmail(req.user.email, "Turno cancelado", textUser, htmlUser)
-        await sendEmail(company.email, "Un turno ha sido cancelado", textCompany, htmlCompany)
+        await sendEmail(req.user.email, "❌ Turno cancelado", textUser, htmlUser)
+        await sendEmail(company.email, "❌ Un turno ha sido cancelado", textCompany, htmlCompany)
 
         res.status(200).send({ data: { serviceToSend } })
 
@@ -537,8 +537,8 @@ export const deleteAppointmentProcess = async (idAppointment: string, companyNam
             dateInString.split(' ')[1]
         )
 
-        await sendEmail(appointment.email as string, "Tu turno ha sido cancelado", textUser, htmlUser)
-        await sendEmail(companyEmail, "Turno cancelado", textCompany, htmlCompany)
+        await sendEmail(appointment.email as string, "❌ Tu turno ha sido cancelado", textUser, htmlUser)
+        await sendEmail(companyEmail, "❌ Turno cancelado", textCompany, htmlCompany)
 
         return { serviceToSend, appointment, dateInString }
 
@@ -679,6 +679,27 @@ export const finishAppointment = async (req: Request, res: Response): Promise<vo
         if (!company) return res.status(400).send({ error: "No se pudo eliminar el turno de 'agendados'." })
 
         res.status(200).send({ data: appointment })
+    } catch (error: any) {
+        res.status(500).send({ error: error.message });
+    }
+}
+
+export const changeAppointmentStatus = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const { appointmentId, status } = req.body
+
+        if (status !== "finished" && status !== "did_not_attend") {
+            return res.status(400).send({ error: "Estado no aceptado." });
+        }
+
+        const appointmentUpdated = await AppointmentModel.findByIdAndUpdate(appointmentId, {
+            $set: { status }
+        }, { new: true }).lean()
+
+        if (!appointmentUpdated) return res.status(400).send({ error: "No se pudo actualizar el turno." })
+
+        res.status(200).send({ data: appointmentUpdated })
+
     } catch (error: any) {
         res.status(500).send({ error: error.message });
     }

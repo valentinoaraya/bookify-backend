@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { cancelAppointment, checkOrderTime, confirmAppointment, deleteAppointment, finishAppointment, getAppointment, getCompanyHistory } from "../controllers/appointmentController";
+import { cancelAppointment, changeAppointmentStatus, checkOrderTime, confirmAppointment, deleteAppointment, finishAppointment, getAppointment, getCompanyHistory } from "../controllers/appointmentController";
 import { authenticateTokenCompany } from "../middlewares/verifyTokens";
 import { verifyDataUser } from "../middlewares/verifyDataUser";
 
@@ -12,5 +12,6 @@ appointmentsRouter.delete("/cancel-appointment/:id", verifyDataUser, cancelAppoi
 appointmentsRouter.delete("/delete-appointment/:id", authenticateTokenCompany, deleteAppointment)
 appointmentsRouter.get("/company-history/:companyId", getCompanyHistory)
 appointmentsRouter.post("/check-booking-hour", checkOrderTime)
+appointmentsRouter.put("/change-status", changeAppointmentStatus)
 
 export default appointmentsRouter
