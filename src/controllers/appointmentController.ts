@@ -590,33 +590,74 @@ export const getAppointment = async (req: Request, res: Response): Promise<void 
 export const getCompanyHistory = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { companyId } = req.params;
+        const { page = 1, limit = 20, from, to } = req.query
 
-        const company = await CompanyModel.findById(companyId);
+        const filters: any = { companyId, status: { $ne: "scheduled" } }
+        const skip = (+page - 1) * +limit
 
-        if (!company) {
-            return res.status(400).send({ error: "Empresa no encontrada" });
+        if (from && to) {
+            const startDate = moment.tz(`${from}`, 'YYYY-MM-DD', 'America/Argentina/Buenos_Aires').toDate()
+            const endDate = moment.tz(`${to}`, 'YYYY-MM-DD', 'America/Argentina/Buenos_Aires').toDate()
+            filters.date = { $gte: startDate, $lte: endDate }
         }
 
-        const now = new Date();
+        const [appointments, total] = await Promise.all([
+            AppointmentModel.find(filters)
+                .sort({ date: -1 })
+                .skip(skip)
+                .limit(+limit)
+                .populate("serviceId")
+                .populate("companyId")
+                .lean(),
+            AppointmentModel.countDocuments(filters)
+        ])
 
-        const historicalAppointments = await AppointmentModel.find({
-            companyId: companyId,
-            date: { $lt: now },
-            status: { $ne: "scheduled" }
+        const hasMore = +total > +skip + appointments.length
+
+        const pendingAppointments = await AppointmentModel.find({
+            companyId,
+            status: "pending_action"
         })
-            .populate('serviceId')
-            .populate('companyId')
             .sort({ date: -1 })
-            .lean();
+            .populate("serviceId")
+            .populate("companyId")
+            .lean()
 
-        if (historicalAppointments.length === 0) {
-            return res.status(200).send({
-                data: [],
-                message: "No se encontraron citas históricas para esta empresa (todas las citas son futuras)"
-            });
-        }
+        const formattedAppointments = (appointments as any[]).map(appointment => {
+            if (!appointment.serviceId) {
+                return null;
+            }
 
-        const formattedAppointments = (historicalAppointments as any[]).map(appointment => {
+            const appointmentDate = new Date(appointment.date);
+            const formattedDate = moment(appointmentDate).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm');
+
+            return {
+                _id: appointment._id,
+                name: appointment.name,
+                lastName: appointment.lastName,
+                email: appointment.email,
+                phone: appointment.phone,
+                dni: appointment.dni,
+                serviceId: {
+                    _id: appointment.serviceId._id,
+                    title: appointment.serviceId.title,
+                    duration: appointment.serviceId.duration,
+                    price: appointment.serviceId.price
+                },
+                companyId: {
+                    _id: appointment.companyId._id,
+                    name: appointment.companyId.name
+                },
+                date: appointment.date,
+                formattedDate: formattedDate,
+                totalPaidAmount: appointment.totalPaidAmount,
+                status: appointment.status,
+                price: appointment.serviceId.price || 0,
+                cancelledBy: appointment.cancelledBy
+            };
+        }).filter(appointment => appointment !== null);
+
+        const formattedPendingAppointments = (pendingAppointments as any[]).map(appointment => {
             if (!appointment.serviceId) {
                 return null;
             }
@@ -651,8 +692,13 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
         }).filter(appointment => appointment !== null);
 
         res.status(200).send({
-            data: formattedAppointments
-        });
+            data: formattedAppointments,
+            pendingAppointments: formattedPendingAppointments,
+            hasMore,
+            total,
+            totalPages: Math.ceil(total / +limit),
+            currentPage: +page
+        })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message });
