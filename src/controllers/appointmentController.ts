@@ -595,24 +595,31 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
         const filters: any = { companyId, status: { $ne: "scheduled" } }
         const skip = (+page - 1) * +limit
 
+        let appointments
+        let total
+        let hasMore
+
         if (from && to) {
             const startDate = moment.tz(`${from}`, 'YYYY-MM-DD', 'America/Argentina/Buenos_Aires').toDate()
             const endDate = moment.tz(`${to}`, 'YYYY-MM-DD', 'America/Argentina/Buenos_Aires').toDate()
-            filters.date = { $gte: startDate, $lte: endDate }
-        }
-
-        const [appointments, total] = await Promise.all([
-            AppointmentModel.find(filters)
+            appointments = await AppointmentModel.find({ ...filters, date: { $gte: startDate, $lte: endDate } })
+                .sort({ date: -1 })
+                .populate("serviceId")
+                .populate("companyId")
+                .lean()
+            total = await AppointmentModel.countDocuments(filters)
+            hasMore = false
+        } else {
+            appointments = await AppointmentModel.find(filters)
                 .sort({ date: -1 })
                 .skip(skip)
                 .limit(+limit)
                 .populate("serviceId")
                 .populate("companyId")
-                .lean(),
-            AppointmentModel.countDocuments(filters)
-        ])
-
-        const hasMore = +total > +skip + appointments.length
+                .lean()
+            total = await AppointmentModel.countDocuments(filters)
+            hasMore = +total > +skip + appointments.length
+        }
 
         const pendingAppointments = await AppointmentModel.find({
             companyId,
@@ -691,13 +698,53 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
             };
         }).filter(appointment => appointment !== null);
 
+        const tz = 'America/Argentina/Buenos_Aires'
+        const nowTz = moment.tz(moment(), tz)
+        const startOfMonth = nowTz.clone().startOf('month').toDate()
+        const endOfMonth = nowTz.clone().endOf('month').toDate()
+
+        const [finishedThisMonth, totalAppointmentsThisMonth, popularServiceAgg] = await Promise.all([
+            AppointmentModel.find({
+                companyId,
+                status: 'finished',
+                date: { $gte: startOfMonth, $lte: endOfMonth }
+            }).populate('serviceId').lean(),
+            AppointmentModel.countDocuments({
+                companyId,
+                date: { $gte: startOfMonth, $lte: nowTz.toDate() }
+            }),
+            AppointmentModel.aggregate([
+                { $match: { companyId: new mongoose.Types.ObjectId(companyId) } },
+                { $group: { _id: '$serviceId', count: { $sum: 1 } } },
+                { $sort: { count: -1 } },
+                { $limit: 1 },
+                { $lookup: { from: 'services', localField: '_id', foreignField: '_id', as: 'service' } },
+                { $unwind: '$service' },
+                { $project: { _id: 0, serviceId: '$_id', title: '$service.title', count: 1 } }
+            ])
+        ])
+
+        const totalIncome = (finishedThisMonth as any[]).reduce((acc, appt: any) => {
+            const price = appt?.serviceId?.price || 0
+            return acc + (typeof price === 'number' ? price : 0)
+        }, 0)
+
+        const mostPopularService = popularServiceAgg && popularServiceAgg.length > 0
+            ? popularServiceAgg[0].title
+            : null
+
         res.status(200).send({
             data: formattedAppointments,
             pendingAppointments: formattedPendingAppointments,
             hasMore,
             total,
             totalPages: Math.ceil(total / +limit),
-            currentPage: +page
+            currentPage: +page,
+            stats: {
+                totalIncome,
+                totalAppointments: totalAppointmentsThisMonth,
+                mostPopularService
+            }
         })
 
     } catch (error: any) {
