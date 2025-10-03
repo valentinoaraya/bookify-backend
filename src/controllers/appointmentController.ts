@@ -725,7 +725,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
         ])
 
         const totalIncome = (finishedThisMonth as any[]).reduce((acc, appt: any) => {
-            const price = appt?.serviceId?.price || 0
+            const price = appt?.serviceId?.price || 0 + (appt?.totalPaidAmount || 0)
             return acc + (typeof price === 'number' ? price : 0)
         }, 0)
 
