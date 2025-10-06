@@ -23,7 +23,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
         if (!company || !service) throw new Error("Error al obtener empresa, servicio o usuario.")
 
         const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId, totalPaidAmount })
-        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser })
+        const price = service.price
+        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser, price })
         const savedAppointment = await newAppointment.save()
         const appointmentToSend = await AppointmentModel.findById(savedAppointment._id).populate("serviceId").lean()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -659,7 +660,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 formattedDate: formattedDate,
                 totalPaidAmount: appointment.totalPaidAmount,
                 status: appointment.status,
-                price: appointment.serviceId.price || 0,
+                price: appointment.price || 0,
                 cancelledBy: appointment.cancelledBy
             };
         }).filter(appointment => appointment !== null);
@@ -693,7 +694,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 formattedDate: formattedDate,
                 totalPaidAmount: appointment.totalPaidAmount,
                 status: appointment.status,
-                price: appointment.serviceId.price || 0,
+                price: appointment.price || 0,
                 cancelledBy: appointment.cancelledBy
             };
         }).filter(appointment => appointment !== null);
@@ -725,7 +726,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
         ])
 
         const totalIncome = (finishedThisMonth as any[]).reduce((acc, appt: any) => {
-            const price = appt?.serviceId?.price || 0 + (appt?.totalPaidAmount || 0)
+            const price = appt?.price || 0 + (appt?.totalPaidAmount || 0)
             return acc + (typeof price === 'number' ? price : 0)
         }, 0)
 
