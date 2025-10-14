@@ -25,6 +25,7 @@ const CompanySchema = new Schema({
     reminders: [reminderSchema],
     cancellationAnticipationHours: { type: Number, default: 24 },
     bookingAnticipationHours: { type: Number, default: 1 },
+    refresh_token: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });
