@@ -125,6 +125,17 @@ export const createToken = (data: BasicInfoWithID): string => {
     return token
 }
 
+export const createRefreshToken = (data: BasicInfoWithID): string => {
+    const refreshToken = jwt.sign(data, JWT_KEY as string, { expiresIn: "7d" })
+    return refreshToken
+}
+
+export const createTokens = (data: BasicInfoWithID): { access_token: string, refresh_token: string } => {
+    const access_token = createToken(data)
+    const refresh_token = createRefreshToken(data)
+    return { access_token, refresh_token }
+}
+
 export const serviceToAdd = (object: any): Service => {
     const service: Service = {
         title: parseInput(object.title, "Titulo").trim(),

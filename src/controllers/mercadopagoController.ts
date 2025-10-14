@@ -72,7 +72,6 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
 
         if (!data.init_point) {
             await removePendingAppointment(serviceId, pendingId)
-            console.log(data)
             return res.status(500).send({ error: "No se pudo reservar temporalmente el turno. Inténtelo de nuevo más tarde." })
         }
 

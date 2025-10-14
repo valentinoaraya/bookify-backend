@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
-import { createToken, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
+import { createTokens, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
 import { type Email } from "../types";
 import moment from "moment-timezone";
 import { ADMIN_API_KEY } from "../config";
@@ -19,10 +19,15 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
         if (companyFound) throw new Error("Ya existe una empresa con este email.")
 
         await newCompany.save()
-        const token = createToken({
+        const tokens = createTokens({
             id: newCompany.id,
             name: newCompany.name,
             email: newCompany.email as Email
+        })
+
+        // Guardar el refresh token en la base de datos
+        await CompanyModel.findByIdAndUpdate(newCompany.id, {
+            refresh_token: tokens.refresh_token
         })
 
         res.status(200).send({
@@ -30,7 +35,8 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
                 id: newCompany.id,
                 name: newCompany.name,
                 email: newCompany.email,
-                access_token: token
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token
             }
         })
 
@@ -43,8 +49,20 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
 export const loginCompany = async (req: Request, res: Response): Promise<void> => {
     try {
         const company = await verifyToLoginCompany(req.body)
-        const token = createToken(company)
-        res.status(200).send({ data: { ...company, access_token: token } })
+        const tokens = createTokens(company)
+
+        // Guardar el refresh token en la base de datos
+        await CompanyModel.findByIdAndUpdate(company.id, {
+            refresh_token: tokens.refresh_token
+        })
+
+        res.status(200).send({
+            data: {
+                ...company,
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token
+            }
+        })
     } catch (error: any) {
         res.status(400).send({ error: error.message })
     }
@@ -96,7 +114,14 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 street: companyDB.street,
                 number: companyDB.number,
                 scheduledAppointments: scheduledAppointmentsWithDateInString,
-                reminders: companyDB.reminders,
+                reminders: companyDB.reminders
+                    ?.slice()
+                    .sort((a: any, b: any) => {
+                        if (typeof a.hoursBefore === "number" && typeof b.hoursBefore === "number") {
+                            return a.hoursBefore - b.hoursBefore;
+                        }
+                        return 0;
+                    }),
                 services: servicesCompanyWithDateInString,
                 connectedWithMP: companyDB.connectedWithMP,
                 company_id: companyDB.company_id,
@@ -133,6 +158,13 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             if (value !== undefined) cleanedSet[key] = value
         })
 
+        if (cleanedSet.company_id) {
+            const existingCompany = await CompanyModel.findOne({ company_id: cleanedSet.company_id, _id: { $ne: company?.id } });
+            if (existingCompany) {
+                return res.status(400).send({ error: "El company_id ya está en uso por otra empresa." });
+            }
+        }
+
         const updatedCompany = await CompanyModel.findByIdAndUpdate(
             company?.id,
             { $set: cleanedSet },
@@ -150,7 +182,14 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             city: updatedCompany.city,
             street: updatedCompany.street,
             number: updatedCompany.number,
-            reminders: updatedCompany.reminders,
+            reminders: updatedCompany.reminders
+                ?.slice()
+                .sort((a: any, b: any) => {
+                    if (typeof a.hoursBefore === "number" && typeof b.hoursBefore === "number") {
+                        return a.hoursBefore - b.hoursBefore;
+                    }
+                    return 0;
+                }),
             cancellationAnticipationHours: updatedCompany.cancellationAnticipationHours,
             bookingAnticipationHours: updatedCompany.bookingAnticipationHours,
         }
@@ -171,6 +210,60 @@ export const getCompanyToUser = async (req: Request, res: Response): Promise<voi
         if (!company) return res.status(400).send({ error: "Empresa no encontrada." })
 
         res.status(200).send({ data: company })
+
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
+export const refreshToken = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const company = req.company // Viene del middleware authenticateRefreshTokenCompany
+
+        if (!company) {
+            return res.status(401).send({ error: "No se pudo verificar la identidad de la empresa" })
+        }
+
+        // Generar nuevos tokens
+        const tokens = createTokens({
+            id: company.id,
+            name: company.name,
+            email: company.email
+        })
+
+        // Actualizar el refresh token en la base de datos
+        await CompanyModel.findByIdAndUpdate(company.id, {
+            refresh_token: tokens.refresh_token
+        })
+
+        res.status(200).send({
+            data: {
+                access_token: tokens.access_token,
+                refresh_token: tokens.refresh_token
+            }
+        })
+
+    } catch (error: any) {
+        res.status(500).send({ error: error.message })
+    }
+}
+
+export const logoutCompany = async (req: Request, res: Response): Promise<void | Response> => {
+    try {
+        const company = req.company // Viene del middleware authenticateTokenCompany
+
+        if (!company) {
+            return res.status(401).send({ error: "No se pudo verificar la identidad de la empresa" })
+        }
+
+        // Invalidar el refresh token eliminándolo de la base de datos
+        await CompanyModel.findByIdAndUpdate(company.id, {
+            refresh_token: ""
+        })
+
+        res.status(200).send({
+            message: "Logout exitoso"
+        })
 
     } catch (error: any) {
         res.status(500).send({ error: error.message })
