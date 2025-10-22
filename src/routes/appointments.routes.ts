@@ -10,8 +10,8 @@ appointmentsRouter.post("/add-appointment", verifyDataUser, confirmAppointment)
 appointmentsRouter.put("/finish-appointment/:id", authenticateTokenCompany, finishAppointment)
 appointmentsRouter.delete("/cancel-appointment/:id", verifyDataUser, cancelAppointment)
 appointmentsRouter.delete("/delete-appointment/:id", authenticateTokenCompany, deleteAppointment)
-appointmentsRouter.get("/company-history/:companyId", getCompanyHistory)
+appointmentsRouter.get("/company-history/:companyId", authenticateTokenCompany, getCompanyHistory)
 appointmentsRouter.post("/check-booking-hour", checkOrderTime)
-appointmentsRouter.put("/change-status", changeAppointmentStatus)
+appointmentsRouter.put("/change-status", authenticateTokenCompany, changeAppointmentStatus)
 
 export default appointmentsRouter
