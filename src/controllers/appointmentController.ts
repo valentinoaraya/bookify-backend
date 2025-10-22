@@ -707,7 +707,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
         const [finishedThisMonth, totalAppointmentsThisMonth, popularServiceAgg] = await Promise.all([
             AppointmentModel.find({
                 companyId,
-                status: 'finished',
+                status: { $ne: "scheduled" },
                 date: { $gte: startOfMonth, $lte: endOfMonth }
             }).populate('serviceId').lean(),
             AppointmentModel.countDocuments({
@@ -726,7 +726,16 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
         ])
 
         const totalIncome = (finishedThisMonth as any[]).reduce((acc, appt: any) => {
-            const price = appt?.price || 0 + (appt?.totalPaidAmount || 0)
+            let price = 0
+            if (appt.status === "finished") {
+                price = (appt?.price || 0) + (appt?.totalPaidAmount || 0)
+            } else if (appt.status === "did_not_attend") {
+                price = appt?.totalPaidAmount || 0
+            } else if (appt.status === "cancelled" && appt.cancelledBy === "company") {
+                price = 0
+            } else if (appt.status === "cancelled" && appt.cancelledBy === "client") {
+                price = appt?.totalPaidAmount ? appt.totalPaidAmount * 0.5 : 0
+            }
             return acc + (typeof price === 'number' ? price : 0)
         }, 0)
 
