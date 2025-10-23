@@ -25,7 +25,6 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
             email: newCompany.email as Email
         })
 
-        // Guardar el refresh token en la base de datos
         await CompanyModel.findByIdAndUpdate(newCompany.id, {
             refresh_token: tokens.refresh_token
         })
@@ -51,7 +50,6 @@ export const loginCompany = async (req: Request, res: Response): Promise<void> =
         const company = await verifyToLoginCompany(req.body)
         const tokens = createTokens(company)
 
-        // Guardar el refresh token en la base de datos
         await CompanyModel.findByIdAndUpdate(company.id, {
             refresh_token: tokens.refresh_token
         })
@@ -126,7 +124,8 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 connectedWithMP: companyDB.connectedWithMP,
                 company_id: companyDB.company_id,
                 cancellationAnticipationHours: companyDB.cancellationAnticipationHours,
-                bookingAnticipationHours: companyDB.bookingAnticipationHours
+                bookingAnticipationHours: companyDB.bookingAnticipationHours,
+                slotsVisibilityDays: companyDB.slotsVisibilityDays,
             }
         })
 
@@ -151,6 +150,7 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
             reminders: data.reminders,
             cancellationAnticipationHours: typeof data.cancellationAnticipationHours === 'number' ? data.cancellationAnticipationHours : undefined,
             bookingAnticipationHours: typeof data.bookingAnticipationHours === 'number' ? data.bookingAnticipationHours : undefined,
+            slotsVisibilityDays: typeof data.slotsVisibilityDays === 'number' ? data.slotsVisibilityDays : undefined,
         }
 
         const cleanedSet: any = {}
@@ -190,6 +190,7 @@ export const updateCompany = async (req: Request, res: Response): Promise<void |
                     }
                     return 0;
                 }),
+            slotsVisibilityDays: updatedCompany.slotsVisibilityDays,
             cancellationAnticipationHours: updatedCompany.cancellationAnticipationHours,
             bookingAnticipationHours: updatedCompany.bookingAnticipationHours,
         }
