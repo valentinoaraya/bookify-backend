@@ -14,7 +14,6 @@ export const authenticateTokenCompany = (req: Request, res: Response, next: Next
         req.company = decoded as BasicInfoWithID
         next()
     } catch (error: any) {
-        // Si el token está expirado, intentar refrescar con refresh token
         if (error.name === 'TokenExpiredError') {
             return res.status(401).send({
                 error: "Token expirado",
@@ -36,7 +35,6 @@ export const authenticateRefreshTokenCompany = async (req: Request, res: Respons
     try {
         const decoded = jwt.verify(refreshToken, JWT_KEY as string) as BasicInfoWithID
 
-        // Verificar que el refresh token existe en la base de datos
         const company = await CompanyModel.findById(decoded.id)
 
         if (!company || company.refresh_token !== refreshToken) {
