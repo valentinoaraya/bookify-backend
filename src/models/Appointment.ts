@@ -13,6 +13,7 @@ const AppointmentSchema = new Schema({
     cancelledBy: { type: String, enum: ["company", "client", "null"], default: "null" },
     date: { type: Date, required: true },
     reminderJobs: [{ type: String }],
+    mode: { type: String, enum: ["in-person", "online"], default: "online" },
     paymentId: { type: String },
     totalPaidAmount: { type: Number },
     createdAt: { type: Date, default: Date.now },

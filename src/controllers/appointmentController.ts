@@ -24,7 +24,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
 
         const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId, totalPaidAmount })
         const price = service.price
-        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser, price })
+        const mode = service.mode
+        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser, price, mode })
         const savedAppointment = await newAppointment.save()
         const appointmentToSend = await AppointmentModel.findById(savedAppointment._id).populate("serviceId").lean()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -646,6 +647,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 email: appointment.email,
                 phone: appointment.phone,
                 dni: appointment.dni,
+                mode: appointment.mode,
                 serviceId: {
                     _id: appointment.serviceId._id,
                     title: appointment.serviceId.title,
@@ -680,6 +682,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 email: appointment.email,
                 phone: appointment.phone,
                 dni: appointment.dni,
+                mode: appointment.mode,
                 serviceId: {
                     _id: appointment.serviceId._id,
                     title: appointment.serviceId.title,

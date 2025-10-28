@@ -54,6 +54,7 @@ export interface Service {
     price: number
     duration: number
     signPrice: number
+    mode: "in-person" | "online"
 }
 
 export interface ServiceWithAppointments extends Service {
