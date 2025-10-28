@@ -115,7 +115,7 @@ export const getAccessTokenClient = async (req: Request, res: Response): Promise
         })
 
         console.log("Access Token obtenido.")
-        res.status(200).send({ data: "Success" })
+        res.status(200).redirect(`https://bookify.aedestec.com/panel/mercadopago-success`);
 
     } catch (error: any) {
         console.error(error)
