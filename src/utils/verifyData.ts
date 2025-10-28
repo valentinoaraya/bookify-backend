@@ -152,14 +152,15 @@ export const serviceToAdd = (object: any): Service => {
         price: parseNumber(object.price, "Precio"),
         capacityPerShift: parseNumber(object.capacityPerShift, "Capacidad de personas") <= 0 ? 1 : parseNumber(object.capacityPerShift, "Capacidad de personas"),
         duration: parseNumber(object.duration, "Duración"),
-        signPrice: parseNumber(object.signPrice, "Precio de seña")
+        signPrice: parseNumber(object.signPrice, "Precio de seña"),
+        mode: object.mode && (object.mode === "in-person" || object.mode === "online") ? object.mode : "online"
     }
 
     return service
 }
 
 export const serviceToUpdate = (object: any) => {
-    const { title, description, price, duration, signPrice, capacityPerShift } = object
+    const { title, description, price, duration, signPrice, capacityPerShift, mode } = object
     const updateFields: any = {}
     if (title != undefined) updateFields.title = title.trim()
     if (description != undefined) updateFields.description = description.trim()
@@ -167,6 +168,7 @@ export const serviceToUpdate = (object: any) => {
     if (capacityPerShift != undefined && capacityPerShift > 0) updateFields.capacityPerShift = capacityPerShift
     if (duration != undefined) updateFields.duration = duration
     if (signPrice != undefined) updateFields.signPrice = signPrice
+    if (mode != undefined && (mode === "in-person" || mode === "online")) updateFields.mode = mode
 
     return updateFields
 }
