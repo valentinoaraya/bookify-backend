@@ -1,12 +1,19 @@
-export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string, appointmentID: string) => {
+export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string, appointmentID: string, mode: "in-person" | "online") => {
 
     const cancelUrl = `https://bookify-aedes.vercel.app/cancel/${appointmentID}`
 
     const htmlUser = `<h2>Turno confimado con éxito</h2>
     <p>Hola ${user.split(" ")[0]},</p> 
     <p>Te informamos que tu turno para <strong>${service}</strong> en <strong>${company}</strong> fue confirmado.</p>
-    <p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
-    <p>Si no puedes asistir, puedes cancelarlo haciendo click en el siguiente botón:</p>
+    ${mode === "online" ?
+            `<p>Este turno será virtual. El profesional te enviará el enlace de la reunión por correo o WhatsApp antes del horario acordado.</p>
+            <p>Si deseas cancelar el turno, puedes hacerlo haciendo click en el siguiente botón:</p>
+            `
+            :
+            `<p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
+            <p>Si no puedes asistir, puedes cancelarlo haciendo click en el siguiente botón:</p>`
+        }
+    
     <p>
       <a href="${cancelUrl}" 
          style="display:inline-block;padding:10px 15px;background-color:#d9534f;color:white;text-decoration:none;border-radius:5px;">
@@ -15,9 +22,15 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
     </p>`
 
     const textUser = `Hola ${user.split(" ")[0]},\n 
-    Te informamos que tu turno para ${service} en ${company} fue confirmado.\n
-    Se te espera en ${location} el día ${date} a las ${time} hs.
-    Si no puedes asistir, cancélalo en el siguiente enlace: ${cancelUrl}`
+    Te informamos que tu turno para ${service} en ${company} fue confirmado.\n    
+    ${mode === "online" ?
+            `Este turno será virtual. El profesional te enviará el enlace de la reunión por correo o WhatsApp antes del horario acordado.\n
+        Si deseas cancelar el turno, puedes hacerlo haciendo click en el siguiente enlace: ${cancelUrl}`
+            :
+            `Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.\n
+        Si no puedes asistir, cancélalo en el siguiente enlace: ${cancelUrl}`
+        }
+    `
 
     return { htmlUser, textUser }
 }
@@ -40,12 +53,12 @@ export const emailConfirmAppointmentCompany = (company: string, service: string,
 export const emailCancelAppointmentUser = (company: string, user: string, service: string, date: string, time: string) => {
     const htmlUser = `<h2>Turno cancelado</h2>
     <p>Hola ${user.split(" ")[0]},</p> 
-    <p>El turno que tenías para <strong>${service}</strong> en <strong>${company}</strong> se ha cancelado correctamente.</p>
+    <p>El turno que tenías para <strong>${service}</strong> con <strong>${company}</strong> se ha cancelado correctamente.</p>
     <p>En caso de que hayas abonado una seña para este turno, te hemos devuelto el 50% del dinero.</p>
     <p>El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.</p>`
 
     const textUser = `Hola ${user.split(" ")[0]},\n
-    El turno que tenías para ${service} en ${company} se ha cancelado correctamente.\n
+    El turno que tenías para ${service} con ${company} se ha cancelado correctamente.\n
     En caso de que hayas abonado una seña para este turno, te hemos devuelto el 50% del dinero.\n
     El turno estaba agendado para el día ${date} a las ${time} hs. Ahora el turno pasa a estar disponible nuevamente.`
 

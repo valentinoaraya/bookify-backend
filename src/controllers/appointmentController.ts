@@ -66,7 +66,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
             `${company.street} ${company.number}, ${company.city}`,
             formatDate(dateInString.split(' ')[0]),
             dateInString.split(' ')[1],
-            newAppointment.id
+            newAppointment.id,
+            service.mode
         )
 
         const { htmlCompany, textCompany } = emailConfirmAppointmentCompany(
