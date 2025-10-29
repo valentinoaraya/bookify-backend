@@ -5,6 +5,27 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
     const htmlUser = `<h2>Turno confimado con éxito</h2>
     <p>Hola ${user.split(" ")[0]},</p> 
     <p>Te informamos que tu turno para <strong>${service}</strong> en <strong>${company}</strong> fue confirmado.</p>
+    <div style="border:1px solid #d1d5db; font-family: 'Arial'; border-radius:8px; padding:20px; background-color:#f9fafb; margin:24px 0 20px 0; max-width:420px; box-shadow:0 2px 8px #00000012;">
+      <h3 style="margin-top:0; margin-bottom:18px; color:#007bff; font-size:1.15rem;">Detalles del turno</h3>
+      <table style="width:100%; border-collapse:collapse;">
+        <tr>
+          <td style="padding: 4px 0; font-weight: 500;">Servicio:</td>
+          <td style="padding: 4px 0;">${service}</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; font-weight: 500;">Fecha:</td>
+          <td style="padding: 4px 0;">${date}</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; font-weight: 500;">Hora:</td>
+          <td style="padding: 4px 0;">${time} hs</td>
+        </tr>
+        <tr>
+          <td style="padding: 4px 0; font-weight: 500;">Modalidad:</td>
+          <td style="padding: 4px 0;">${mode === "online" ? "Virtual" : "Presencial"}</td>
+        </tr>
+      </table>
+    </div>
     ${mode === "online" ?
             `<p>Este turno será virtual. El profesional te enviará el enlace de la reunión por correo o WhatsApp antes del horario acordado.</p>
             <p>Si deseas cancelar el turno, puedes hacerlo haciendo click en el siguiente botón:</p>
@@ -23,6 +44,11 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
 
     const textUser = `Hola ${user.split(" ")[0]},\n 
     Te informamos que tu turno para ${service} en ${company} fue confirmado.\n    
+    Detalles del turno:\n    
+    Servicio: ${service}\n    
+    Fecha: ${date}\n    
+    Hora: ${time} hs\n    
+    Modalidad: ${mode === "online" ? "Virtual" : "Presencial"}\n    
     ${mode === "online" ?
             `Este turno será virtual. El profesional te enviará el enlace de la reunión por correo o WhatsApp antes del horario acordado.\n
         Si deseas cancelar el turno, puedes hacerlo haciendo click en el siguiente enlace: ${cancelUrl}`
