@@ -9,7 +9,6 @@ const sendAppointmentReminders = async () => {
     try {
         console.log("🔍 Buscando turnos para enviar recordatorios...")
 
-        // Obtener todas las empresas con sus configuraciones de recordatorios
         const companies = await CompanyModel.find({ reminders: { $exists: true, $ne: [] } })
             .populate('reminders.services', 'title')
 
