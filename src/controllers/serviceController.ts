@@ -8,9 +8,18 @@ import moment from "moment-timezone";
 import { AvailableAppointment, ServiceWithAppointments } from "../types";
 import { deleteAppointmentProcess } from "./appointmentController";
 
-export const createService = async (req: Request, res: Response) => {
+export const createService = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const companyId = req.company?.id
+
+        const companyDb = await CompanyModel.findById(companyId)
+
+        if (!companyDb) return res.status(404).send({ error: "Empresa no encontrada." })
+
+        if (companyDb.plan === "individual" && companyDb.services.length >= 5) {
+            return res.status(403).send({ error: "Has alcanzado el límite de servicios para tu plan. Actualiza tu plan para agregar más servicios." })
+        }
+
         const service = serviceToAdd(req.body)
         const newService = { companyId, ...service }
         const finalService = new ServiceModel(newService)

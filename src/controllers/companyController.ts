@@ -126,6 +126,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 cancellationAnticipationHours: companyDB.cancellationAnticipationHours,
                 bookingAnticipationHours: companyDB.bookingAnticipationHours,
                 slotsVisibilityDays: companyDB.slotsVisibilityDays,
+                plan: companyDB.plan
             }
         })
 

@@ -743,6 +743,11 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
             return acc + (typeof price === 'number' ? price : 0)
         }, 0)
 
+        const finishedAppointmentsCount = (finishedThisMonth as any[]).filter((appt: any) => appt.status === "finished").length
+        const finishedAppointmentsPercentage = totalAppointmentsThisMonth > 0
+            ? (finishedAppointmentsCount / totalAppointmentsThisMonth) * 100
+            : 0
+
         const mostPopularService = popularServiceAgg && popularServiceAgg.length > 0
             ? popularServiceAgg[0].title
             : null
@@ -757,7 +762,8 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
             stats: {
                 totalIncome,
                 totalAppointments: totalAppointmentsThisMonth,
-                mostPopularService
+                mostPopularService,
+                finishedAppointmentsPercentage
             }
         })
 

@@ -26,6 +26,7 @@ const CompanySchema = new Schema({
     slotsVisibilityDays: { type: Number, required: true, default: 7 },
     cancellationAnticipationHours: { type: Number, default: 24 },
     bookingAnticipationHours: { type: Number, default: 1 },
+    plan: { type: String, enum: ["individual", "individual_plus", "team"] },
     refresh_token: { type: String, default: "" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
