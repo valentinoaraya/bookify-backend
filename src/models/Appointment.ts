@@ -1,10 +1,16 @@
 import mongoose, { Schema } from "mongoose";
 
+const serviceInfoSchema = new Schema({
+    title: { type: String, required: true }
+})
+
 const AppointmentSchema = new Schema({
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },
     serviceId: { type: mongoose.Schema.Types.ObjectId, ref: "Service", required: true },
     name: { type: String, required: true },
     price: { type: Number, required: true },
+    duration: { type: Number, required: true },
+    serviceInfo: serviceInfoSchema,
     lastName: { type: String, required: true },
     email: { type: String, required: true },
     dni: { type: String, required: true },

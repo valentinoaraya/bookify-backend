@@ -25,7 +25,8 @@ const createAppointment = async (companyId: string, serviceId: string, date: Dat
         const appointment = appointmentToAdd({ companyId, serviceId, date, paymentId, totalPaidAmount })
         const price = service.price
         const mode = service.mode
-        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser, price, mode })
+        const duration = service.duration
+        const newAppointment = new AppointmentModel({ ...appointment, ...dataUser, price, mode, duration })
         const savedAppointment = await newAppointment.save()
         const appointmentToSend = await AppointmentModel.findById(savedAppointment._id).populate("serviceId").lean()
         const dateInString = moment(date).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm')
@@ -634,9 +635,6 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
             .lean()
 
         const formattedAppointments = (appointments as any[]).map(appointment => {
-            if (!appointment.serviceId) {
-                return null;
-            }
 
             const appointmentDate = new Date(appointment.date);
             const formattedDate = moment(appointmentDate).tz('America/Argentina/Buenos_Aires').format('YYYY-MM-DD HH:mm');
@@ -646,14 +644,16 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 name: appointment.name,
                 lastName: appointment.lastName,
                 email: appointment.email,
+                serviceInfo: appointment.serviceInfo,
                 phone: appointment.phone,
                 dni: appointment.dni,
                 mode: appointment.mode,
+                duration: appointment.duration,
                 serviceId: {
-                    _id: appointment.serviceId._id,
-                    title: appointment.serviceId.title,
-                    duration: appointment.serviceId.duration,
-                    price: appointment.serviceId.price
+                    _id: appointment.serviceId?._id,
+                    title: appointment.serviceId?.title,
+                    duration: appointment.serviceId?.duration,
+                    price: appointment.serviceId?.price
                 },
                 companyId: {
                     _id: appointment.companyId._id,
