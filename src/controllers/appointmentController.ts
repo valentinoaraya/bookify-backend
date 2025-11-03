@@ -716,14 +716,19 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
             }).populate('serviceId').lean(),
             AppointmentModel.countDocuments({
                 companyId,
-                date: { $gte: startOfMonth, $lte: nowTz.toDate() }
+                date: { $gte: startOfMonth, $lte: endOfMonth }
             }),
             AppointmentModel.aggregate([
                 { $match: { companyId: new mongoose.Types.ObjectId(companyId) } },
                 { $group: { _id: '$serviceId', count: { $sum: 1 } } },
                 { $sort: { count: -1 } },
+                {
+                    $lookup: { from: 'services', localField: '_id', foreignField: '_id', as: 'service' }
+                },
+                {
+                    $match: { 'service.0': { $exists: true } }
+                },
                 { $limit: 1 },
-                { $lookup: { from: 'services', localField: '_id', foreignField: '_id', as: 'service' } },
                 { $unwind: '$service' },
                 { $project: { _id: 0, serviceId: '$_id', title: '$service.title', count: 1 } }
             ])
@@ -750,7 +755,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
 
         const mostPopularService = popularServiceAgg && popularServiceAgg.length > 0
             ? popularServiceAgg[0].title
-            : null
+            : "N/A"
 
         res.status(200).send({
             data: formattedAppointments,
