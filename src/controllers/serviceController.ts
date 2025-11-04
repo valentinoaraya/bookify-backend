@@ -8,9 +8,18 @@ import moment from "moment-timezone";
 import { AvailableAppointment, ServiceWithAppointments } from "../types";
 import { deleteAppointmentProcess } from "./appointmentController";
 
-export const createService = async (req: Request, res: Response) => {
+export const createService = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const companyId = req.company?.id
+
+        const companyDb = await CompanyModel.findById(companyId)
+
+        if (!companyDb) return res.status(404).send({ error: "Empresa no encontrada." })
+
+        if (companyDb.plan === "individual" && companyDb.services.length >= 5) {
+            return res.status(403).send({ error: "Has alcanzado el límite de servicios para tu plan. Actualiza tu plan para agregar más servicios." })
+        }
+
         const service = serviceToAdd(req.body)
         const newService = { companyId, ...service }
         const finalService = new ServiceModel(newService)
@@ -129,20 +138,27 @@ export const deleteService = async (req: Request, res: Response): Promise<void |
     try {
         if (!req.company) return res.status(500).send({ error: "Empresa no encontrada." })
         const { id } = req.params
-        const appointmentsToDelete = await AppointmentModel.find({ serviceId: id });
+        const appointmentsToDelete = await AppointmentModel.find({ serviceId: id, status: "scheduled" });
 
         if (appointmentsToDelete.length > 0) {
-
             for (const appointment of appointmentsToDelete) {
                 await deleteAppointmentProcess(appointment.id, req.company.name, req.company.email)
             }
         }
 
-        const service = await ServiceModel.findByIdAndDelete(id)
+        const service = await ServiceModel.findById(id).lean()
 
         if (!service) return res.status(404).send({ error: "Servicio no encontrado." })
 
-        await CompanyModel.findByIdAndUpdate(service.companyId, {
+        await AppointmentModel.updateMany({ serviceId: id },
+            { $set: { serviceInfo: { title: service.title } } }
+        )
+
+        const serviceToSend = await ServiceModel.findByIdAndDelete(id)
+
+        if (!serviceToSend) return res.status(404).send({ error: "Servicio no encontrado." })
+
+        await CompanyModel.findByIdAndUpdate(serviceToSend.companyId, {
             $pull: { services: id }
         })
 

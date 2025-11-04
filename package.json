@@ -11,6 +11,7 @@
     "build": "tsc",
     "migrate:pending": "ts-node src/utils/migratePendingAppointments.ts",
     "migrate:mode": "ts-node src/utils/migrateModeOnline.ts",
+    "migrate:serviceinfo": "ts-node src/utils/migrateServiceInfoNull.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
