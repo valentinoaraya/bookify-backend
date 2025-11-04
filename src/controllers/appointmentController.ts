@@ -594,36 +594,59 @@ export const getAppointment = async (req: Request, res: Response): Promise<void 
 export const getCompanyHistory = async (req: Request, res: Response): Promise<void | Response> => {
     try {
         const { companyId } = req.params;
-        const { page = 1, limit = 20, from, to } = req.query
+        const { page = 1, limit = 10, from, to, q, serviceId } = req.query as {
+            page?: any; limit?: any; from?: any; to?: any; q?: any; serviceId?: any;
+        }
 
         const filters: any = { companyId, status: { $ne: "scheduled" } }
-        const skip = (+page - 1) * +limit
-
-        let appointments
-        let total
-        let hasMore
 
         if (from && to) {
             const startDate = moment.tz(`${from}`, 'YYYY-MM-DD', 'America/Argentina/Buenos_Aires').toDate()
             const endDate = moment.tz(`${to}`, 'YYYY-MM-DD', 'America/Argentina/Buenos_Aires').toDate()
-            appointments = await AppointmentModel.find({ ...filters, date: { $gte: startDate, $lte: endDate } })
-                .sort({ date: -1 })
-                .populate("serviceId")
-                .populate("companyId")
-                .lean()
-            total = await AppointmentModel.countDocuments(filters)
-            hasMore = false
-        } else {
-            appointments = await AppointmentModel.find(filters)
+            filters.date = { $gte: startDate, $lte: endDate }
+        }
+
+        if (serviceId && typeof serviceId === 'string' && serviceId !== 'all') {
+            filters.serviceId = new mongoose.Types.ObjectId(serviceId)
+        }
+
+        if (q && typeof q === 'string' && q.trim() !== '') {
+            const search = q.trim()
+            const tokens = search.split(/\s+/).filter(Boolean)
+
+            const nameLastNameAndConditions = {
+                $and: tokens.map((t: string) => ({
+                    $or: [
+                        { name: { $regex: t, $options: 'i' } },
+                        { lastName: { $regex: t, $options: 'i' } }
+                    ]
+                }))
+            }
+
+            const orConditions: any[] = [nameLastNameAndConditions, { email: { $regex: search, $options: 'i' } }]
+
+            const dniNumber = Number(search)
+            if (!isNaN(dniNumber)) {
+                orConditions.push({ dni: dniNumber })
+            }
+
+            filters.$or = orConditions
+        }
+
+        const skip = (+page - 1) * +limit
+
+        const [appointments, total] = await Promise.all([
+            AppointmentModel.find(filters)
                 .sort({ date: -1 })
                 .skip(skip)
                 .limit(+limit)
                 .populate("serviceId")
                 .populate("companyId")
-                .lean()
-            total = await AppointmentModel.countDocuments(filters)
-            hasMore = +total > +skip + appointments.length
-        }
+                .lean(),
+            AppointmentModel.countDocuments(filters)
+        ])
+
+        const hasMore = +total > +skip + appointments.length
 
         const pendingAppointments = await AppointmentModel.find({
             companyId,
