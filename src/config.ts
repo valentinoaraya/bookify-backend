@@ -17,3 +17,5 @@ export const REDIRECT_URL_MP = process.env.REDIRECT_URL_MP
 export const ADMIN_API_KEY = process.env.ADMIN_API_KEY
 export const REDIS_HOST = process.env.REDIS_HOST
 export const REDIS_PORT = process.env.REDIS_PORT
+export const ACCESS_TOKEN_MP_AEDES = process.env.ACCESS_TOKEN_MP_AEDES
+export const BACK_URL_AEDES = process.env.BACK_URL_AEDES

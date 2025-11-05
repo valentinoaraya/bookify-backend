@@ -28,6 +28,7 @@ const CompanySchema = new Schema({
     bookingAnticipationHours: { type: Number, default: 1 },
     plan: { type: String, enum: ["individual", "individual_plus", "team"] },
     refresh_token: { type: String, default: "" },
+    status_suscription: { type: String, default: "pending" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

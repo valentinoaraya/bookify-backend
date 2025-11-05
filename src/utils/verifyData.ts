@@ -71,10 +71,11 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
 
     const newCompany: CompanyInputs = {
         name: parseInput(object.name, "Nombre").trim(),
-        company_id: parseInput(object.company_id, "ID de empresa").trim(),
+        company_id: Math.random().toString(36).slice(2, 11),
         email: parseEmail(object.email),
         password: hashedPassword,
         phone: parseInput(object.phone, "Teléfono").trim(),
+        plan: parseInput(object.plan, "Plan").trim()
     }
 
     if (object.city !== undefined) {
