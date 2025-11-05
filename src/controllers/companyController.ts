@@ -14,15 +14,15 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
         const namesAndAmounts = {
             individual: {
                 name: "Plan Individual",
-                price: 12000
+                price: 120
             },
             individual_plus: {
                 name: "Plan Individual Plus",
-                price: 18000
+                price: 180
             },
             teams: {
                 name: "Plan Equipo",
-                price: 35000
+                price: 350
             },
         }
 
