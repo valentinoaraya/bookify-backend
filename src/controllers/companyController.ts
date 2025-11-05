@@ -1,18 +1,31 @@
 import { Request, Response } from "express";
 import CompanyModel from "../models/Company";
-import { createTokens, companyToAdd, verifyToLoginCompany } from "../utils/verifyData";
+import { createTokens, verifyToLoginCompany, companyToAdd } from "../utils/verifyData";
 import { type Email } from "../types";
 import moment from "moment-timezone";
-import { ADMIN_API_KEY } from "../config";
+import { PreApproval } from "mercadopago";
+import { mercadoPagoAedes } from "../services/mercadopagoService";
+import { BACK_URL_AEDES } from "../config";
 
 export const createCompany = async (req: Request, res: Response): Promise<void | Response> => {
-
-    const apiKey = req.headers["admin-api-key"]
-
-    if (!apiKey || apiKey !== ADMIN_API_KEY) return res.status(401).send({ error: "No tienes permisos para realizar esta acción." })
-
     try {
         const company = await companyToAdd(req.body)
+
+        const namesAndAmounts = {
+            individual: {
+                name: "Plan Individual",
+                price: 12000
+            },
+            individual_plus: {
+                name: "Plan Individual Plus",
+                price: 18000
+            },
+            teams: {
+                name: "Plan Equipo",
+                price: 35000
+            },
+        }
+
         const newCompany = new CompanyModel(company)
         const companyFound = await CompanyModel.findOne({ email: newCompany.email })
 
@@ -29,8 +42,25 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
             refresh_token: tokens.refresh_token
         })
 
+        const suscription = await new PreApproval(mercadoPagoAedes).create({
+            body: {
+                back_url: BACK_URL_AEDES,
+                reason: `Suscripción Bookify - ${namesAndAmounts[company.plan as keyof typeof namesAndAmounts].name}`,
+                auto_recurring: {
+                    frequency: 1,
+                    frequency_type: "months",
+                    transaction_amount: namesAndAmounts[company.plan as keyof typeof namesAndAmounts].price,
+                    currency_id: "ARS"
+                },
+                payer_email: company.email,
+                status: "pending",
+                external_reference: `${newCompany.id}`
+            }
+        })
+
         res.status(200).send({
             data: {
+                init_point: suscription.init_point,
                 id: newCompany.id,
                 name: newCompany.name,
                 email: newCompany.email,

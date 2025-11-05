@@ -5,6 +5,8 @@ import ServiceModel from "../models/Service"
 import { markAppointmentAsPending, removePendingAppointment } from "../utils/managePendingAppointments"
 import { confirmAppointmentWebhook } from "./appointmentController"
 import moment from "moment-timezone"
+import { PreApproval } from "mercadopago"
+import { mercadoPagoAedes } from "../services/mercadopagoService"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -145,7 +147,7 @@ export const generateOAuthURL = async (req: Request, res: Response): Promise<voi
 
 export const manageWebhooks = async (req: Request, res: Response): Promise<void | Response> => {
     try {
-        const { type, action, user_id } = req.body
+        const { type, action, user_id, data } = req.body
 
         if (type === "payment" && action === "payment.created") {
             console.log("Notificación de pago recibida.")
@@ -166,6 +168,25 @@ export const manageWebhooks = async (req: Request, res: Response): Promise<void 
             await empresa.save()
 
             console.log(`Empresa ${empresa.name} desautorizada.`)
+
+            res.status(200).send({ data: "Received" })
+        } else if (type === "subscription_preapproval") {
+            console.log("Notificación de suscripción recibida.")
+
+            const preapproval = await new PreApproval(mercadoPagoAedes).get({ id: data.id })
+            const companyId = preapproval.external_reference
+
+            if (preapproval.status === "authorized") {
+                console.log("Suscripción aprobada.")
+                await CompanyModel.findByIdAndUpdate(companyId, {
+                    $set: { status_suscription: "active" }
+                })
+            } else {
+                console.log("Suscripción no aprobada.")
+                await CompanyModel.findByIdAndUpdate(companyId, {
+                    $set: { status_suscription: "failed" }
+                })
+            }
 
             res.status(200).send({ data: "Received" })
         }
