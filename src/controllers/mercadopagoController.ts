@@ -7,6 +7,7 @@ import { confirmAppointmentWebhook } from "./appointmentController"
 import moment from "moment-timezone"
 import { PreApproval } from "mercadopago"
 import { mercadoPagoAedes } from "../services/mercadopagoService"
+import { sendEmail } from "../services/emailService"
 
 export const createPreference = async (req: Request, res: Response): Promise<void | Response> => {
     try {
@@ -176,16 +177,65 @@ export const manageWebhooks = async (req: Request, res: Response): Promise<void 
             const preapproval = await new PreApproval(mercadoPagoAedes).get({ id: data.id })
             const companyId = preapproval.external_reference
 
+            const company = await CompanyModel.findById(companyId)
+
+            if (!company) return res.status(404).send({ error: "Empresa no encontrada." })
+
             if (preapproval.status === "authorized") {
                 console.log("Suscripción aprobada.")
                 await CompanyModel.findByIdAndUpdate(companyId, {
                     $set: { status_suscription: "active" }
                 })
+
+                await sendEmail(
+                    company.email,
+                    "✅ Tu suscripción a Bookify ha sido aprobada",
+                    `¡Felicitaciones!\n Tu suscripción a Bookify ha sido aprobada con éxito.\n Ya puedes disfrutar de todos los beneficios y funcionalidades de nuestro sistema.\n ¡Gracias por confiar en nosotros!\n Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.`,
+                    `<div style="font-family: Arial, sans-serif; color: #262626;">
+                        <h2>🎉 ¡Felicitaciones!</h2>
+                        <p>Tu suscripción a <strong>Bookify</strong> ha sido <span style="color: #27ae60; font-weight: bold;">aprobada</span> con éxito.</p>
+                        <p>Ya puedes disfrutar de todos los beneficios y funcionalidades del sistema.</p>
+                        <p>¡Gracias por confiar en nosotros!</p>
+                        <br/>
+                        <p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p>
+                    </div>`
+                )
+
+            } else if (preapproval.status === "pending") {
+                console.log("Suscripción pendiente.")
+
+                await sendEmail(
+                    company.email,
+                    "⏱️ Tu suscripción a Bookify está siendo procesada.",
+                    `¡Hola!\n Tu suscripción a Bookify está siendo procesada en este momento.\n Te informaremos sobre el estado de tu pago en breves.\n ¡Gracias por confiar en nosotros!\n Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.`,
+                    `<div style="font-family: Arial, sans-serif; color: #262626;">
+                        <h2>¡Hola!</h2>
+                        <p>Tu suscripción a <strong>Bookify</strong> está siendo <span style="color:rgb(228, 157, 26); font-weight: bold;">procesada</span> en este momento.</p>
+                        <p>Te informaremos sobre el estado del pago en breves.</p>
+                        <p>¡Gracias por confiar en nosotros!</p>
+                        <br/>
+                        <p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p>
+                    </div>`
+                )
+
             } else {
-                console.log("Suscripción no aprobada.")
+                console.log("Suscripción rechazada.")
                 await CompanyModel.findByIdAndUpdate(companyId, {
-                    $set: { status_suscription: "failed" }
+                    $set: { status_suscription: "inactive" }
                 })
+
+                await sendEmail(
+                    company.email,
+                    "❌ Tu suscripción a Bookify ha sido rechazada",
+                    `¡Lo sentimos!\n Tu suscripción a Bookify ha sido rechazada.\n Por favor, contacta al soporte para resolver el problema.\n`,
+                    `<div style="font-family: Arial, sans-serif; color: #262626;">
+                        <h2>❌ ¡Lo sentimos!</h2>
+                        <p>Tu suscripción a <strong>Bookify</strong> ha sido <span style="color: #e74c3c; font-weight: bold;">rechazada</span>.</p>
+                        <p>Por favor, contacta al soporte para resolver el problema.</p>
+                        <br/>
+                        <p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p>
+                    </div>`
+                )
             }
 
             res.status(200).send({ data: "Received" })

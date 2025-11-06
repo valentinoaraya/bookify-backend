@@ -8,25 +8,32 @@ import { mercadoPagoAedes } from "../services/mercadopagoService";
 import { BACK_URL_AEDES } from "../config";
 
 export const createCompany = async (req: Request, res: Response): Promise<void | Response> => {
+
+    const { payer_email } = req.body
+    let newCompany = null
+
     try {
+
+        if (!payer_email) throw new Error("Falta el correo del pagador")
+
         const company = await companyToAdd(req.body)
 
         const namesAndAmounts = {
             individual: {
                 name: "Plan Individual",
-                price: 120
+                price: 12000
             },
             individual_plus: {
                 name: "Plan Individual Plus",
-                price: 180
+                price: 18000
             },
             teams: {
                 name: "Plan Equipo",
-                price: 350
+                price: 35000
             },
         }
 
-        const newCompany = new CompanyModel(company)
+        newCompany = new CompanyModel(company)
         const companyFound = await CompanyModel.findOne({ email: newCompany.email })
 
         if (companyFound) throw new Error("Ya existe una empresa con este email.")
@@ -52,7 +59,7 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
                     transaction_amount: namesAndAmounts[company.plan as keyof typeof namesAndAmounts].price,
                     currency_id: "ARS"
                 },
-                payer_email: company.email,
+                payer_email: payer_email,
                 status: "pending",
                 external_reference: `${newCompany.id}`
             }
@@ -69,8 +76,10 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
             }
         })
 
-
     } catch (error: any) {
+        if (newCompany && newCompany._id) {
+            await CompanyModel.findByIdAndDelete(newCompany._id)
+        }
         res.status(400).send({ error: error.message })
     }
 }
@@ -156,7 +165,8 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 cancellationAnticipationHours: companyDB.cancellationAnticipationHours,
                 bookingAnticipationHours: companyDB.bookingAnticipationHours,
                 slotsVisibilityDays: companyDB.slotsVisibilityDays,
-                plan: companyDB.plan
+                plan: companyDB.plan,
+                statusSuscription: companyDB.status_suscription
             }
         })
 
