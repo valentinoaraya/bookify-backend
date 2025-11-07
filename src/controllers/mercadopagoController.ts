@@ -53,9 +53,9 @@ export const createPreference = async (req: Request, res: Response): Promise<voi
                 last_name: lastName,
             },
             back_urls: {
-                success: "https://bookify-aedes.vercel.app/processingpayment",
-                failure: "https://bookify-aedes.vercel.app/processingpayment",
-                pending: "https://bookify-aedes.vercel.app/processingpayment"
+                success: "https://bookify.aedestec.com/processingpayment",
+                failure: "https://bookify.aedestec.com/processingpayment",
+                pending: "https://bookify.aedestec.com/processingpayment"
             },
             auto_return: "approved",
             external_reference: `${empresaId}_${serviceId}_${date}_${name}_${lastName}_${email}_${dni}_${phone}_${pendingId}`,
