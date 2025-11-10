@@ -5,6 +5,14 @@ const reminderSchema = new Schema({
     services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }]
 })
 
+const suscription = new Schema({
+    suscription_id: { type: String },
+    plan: { type: String, enum: ["individual", "individual_plus", "team"] },
+    status_suscription: { type: String, enum: ["active", "inactive", "pending"], default: "pending" },
+    start_date: { type: Date },
+    next_payment_date: { type: Date },
+})
+
 const CompanySchema = new Schema({
     name: { type: String, required: true },
     company_id: { type: String, required: true, unique: true },
@@ -14,6 +22,7 @@ const CompanySchema = new Schema({
     street: { type: String },
     number: { type: String },
     phone: { type: String, required: true },
+    suscription: suscription,
     role: { type: String, enum: ["admin", "user"], default: "user" },
     services: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Service' }],
     scheduledAppointments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Appointment" }],
@@ -26,9 +35,7 @@ const CompanySchema = new Schema({
     slotsVisibilityDays: { type: Number, required: true, default: 7 },
     cancellationAnticipationHours: { type: Number, default: 24 },
     bookingAnticipationHours: { type: Number, default: 1 },
-    plan: { type: String, enum: ["individual", "individual_plus", "team"] },
     refresh_token: { type: String, default: "" },
-    status_suscription: { type: String, enum: ["active", "inactive", "pending"], default: "pending" },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 });

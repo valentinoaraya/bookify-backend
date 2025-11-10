@@ -26,7 +26,13 @@ export interface CompanyInputs extends InputsCommon {
     city?: string | null
     street?: string | null
     number?: string | null
-    plan: string
+    suscription: {
+        plan: string,
+        suscription_id?: string
+        status_suscription?: string,
+        start_date?: Date,
+        next_payment_date?: Date,
+    }
 }
 
 export interface UserInputs extends InputsCommon {
@@ -90,7 +96,7 @@ export interface Company extends CompanyInputs {
     bookingAnticipationHours: number
 }
 
-export type CompanyWithoutPassword = Omit<Company, "password" | "plan">
+export type CompanyWithoutPassword = Omit<Company, "password" | "suscription">
 
 export interface AvailableAppointment {
     datetime: Date
