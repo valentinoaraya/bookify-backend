@@ -75,7 +75,9 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
         email: parseEmail(object.email),
         password: hashedPassword,
         phone: parseInput(object.phone, "Teléfono").trim(),
-        plan: parseInput(object.plan, "Plan").trim()
+        suscription: {
+            plan: parseInput(object.plan, "Plan").trim(),
+        }
     }
 
     if (object.city !== undefined) {

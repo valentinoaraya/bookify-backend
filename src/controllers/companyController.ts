@@ -8,12 +8,10 @@ import { mercadoPagoAedes } from "../services/mercadopagoService";
 import { BACK_URL_AEDES } from "../config";
 
 export const createCompany = async (req: Request, res: Response): Promise<void | Response> => {
-
     const { payer_email } = req.body
     let newCompany = null
 
     try {
-
         if (!payer_email) throw new Error("Falta el correo del pagador")
 
         const company = await companyToAdd(req.body)
@@ -33,10 +31,27 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
             },
         }
 
-        newCompany = new CompanyModel(company)
-        const companyFound = await CompanyModel.findOne({ email: newCompany.email })
+        const companyFound = await CompanyModel.findOne({ email: company.email })
 
         if (companyFound) throw new Error("Ya existe una empresa con este email.")
+
+        newCompany = new CompanyModel(company)
+
+        const suscription = await new PreApproval(mercadoPagoAedes).create({
+            body: {
+                back_url: BACK_URL_AEDES,
+                reason: `Suscripción Bookify - ${namesAndAmounts[company.suscription.plan as keyof typeof namesAndAmounts].name}`,
+                auto_recurring: {
+                    frequency: 1,
+                    frequency_type: "months",
+                    transaction_amount: namesAndAmounts[company.suscription.plan as keyof typeof namesAndAmounts].price,
+                    currency_id: "ARS"
+                },
+                payer_email: payer_email,
+                status: "pending",
+                external_reference: `${newCompany.id}`
+            }
+        })
 
         await newCompany.save()
         const tokens = createTokens({
@@ -46,22 +61,11 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
         })
 
         await CompanyModel.findByIdAndUpdate(newCompany.id, {
-            refresh_token: tokens.refresh_token
-        })
-
-        const suscription = await new PreApproval(mercadoPagoAedes).create({
-            body: {
-                back_url: BACK_URL_AEDES,
-                reason: `Suscripción Bookify - ${namesAndAmounts[company.plan as keyof typeof namesAndAmounts].name}`,
-                auto_recurring: {
-                    frequency: 1,
-                    frequency_type: "months",
-                    transaction_amount: namesAndAmounts[company.plan as keyof typeof namesAndAmounts].price,
-                    currency_id: "ARS"
-                },
-                payer_email: payer_email,
-                status: "pending",
-                external_reference: `${newCompany.id}`
+            refresh_token: tokens.refresh_token,
+            suscription: {
+                suscription_id: suscription.id,
+                next_payment_date: suscription.next_payment_date,
+                ...newCompany.suscription,
             }
         })
 
@@ -165,8 +169,7 @@ export const getCompany = async (req: Request, res: Response): Promise<void | Re
                 cancellationAnticipationHours: companyDB.cancellationAnticipationHours,
                 bookingAnticipationHours: companyDB.bookingAnticipationHours,
                 slotsVisibilityDays: companyDB.slotsVisibilityDays,
-                plan: companyDB.plan,
-                statusSuscription: companyDB.status_suscription
+                suscription: companyDB.suscription
             }
         })
 

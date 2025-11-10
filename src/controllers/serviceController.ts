@@ -16,7 +16,7 @@ export const createService = async (req: Request, res: Response): Promise<void |
 
         if (!companyDb) return res.status(404).send({ error: "Empresa no encontrada." })
 
-        if (companyDb.plan === "individual" && companyDb.services.length >= 5) {
+        if (companyDb.suscription?.plan === "individual" && companyDb.services.length >= 5) {
             return res.status(403).send({ error: "Has alcanzado el límite de servicios para tu plan. Actualiza tu plan para agregar más servicios." })
         }
 
