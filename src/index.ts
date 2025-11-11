@@ -11,6 +11,7 @@ import { startRefreshMercadoPagoTokens } from "./utils/refreshMercadoPagoTokens"
 import mercadopagoRouter from "./routes/mercadopago.routes"
 import http from "http"
 import { Server } from "socket.io"
+import { suscriptionsRoutes } from "./routes/suscriptions.routes"
 
 const app = express()
 
@@ -36,6 +37,7 @@ app.use("/appointments", appointmentsRouter)
 app.use("/companies", companiesRouter)
 app.use("/services", servicesRouter)
 app.use("/mercadopago", mercadopagoRouter)
+app.use("/suscriptions", suscriptionsRoutes)
 app.use(express.json())
 
 const server = http.createServer(app)

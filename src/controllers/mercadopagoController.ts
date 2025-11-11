@@ -183,9 +183,50 @@ export const manageWebhooks = async (req: Request, res: Response): Promise<void 
 
             if (preapproval.status === "authorized") {
                 console.log("Suscripción aprobada.")
+
                 await CompanyModel.findByIdAndUpdate(companyId, {
-                    $set: { status_suscription: "active" }
+                    $set: {
+                        "suscription.status_suscription": "active",
+                        "suscription.start_date": new Date(),
+                        "suscription.next_payment_date": preapproval.next_payment_date
+                    }
                 })
+
+                if (company.suscription?.status_suscription === "upgrading") {
+                    await sendEmail(
+                        company.email,
+                        "🚀 Cambio de plan realizado con éxito",
+                        `¡Felicitaciones!\n Has cambiado de plan exitosamente.\n Ya puedes disfrutar de todos los beneficios y funcionalidades de nuestro sistema.\n ¡Gracias por confiar en nosotros!\n Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.`,
+                        `<div style="font-family: Arial, sans-serif; color: #262626;">
+                            <h2>🎉 ¡Felicitaciones!</h2>
+                            <p>Has cambiado de plan <span style="color: #27ae60; font-weight: bold;">exitosamente</span>.</p>
+                            <p>Ya puedes disfrutar de todos los beneficios y funcionalidades del sistema.</p>
+                            <p>¡Gracias por confiar en nosotros!</p>
+                            <br/>
+                            <p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p>
+                        </div>`
+                    )
+
+                    return res.status(200).send({ data: "Received" })
+                }
+
+                if (company.suscription?.status_suscription === "downgrading") {
+                    await sendEmail(
+                        company.email,
+                        "🚀 Cambio de plan realizado con éxito",
+                        `¡Felicitaciones!\n Has cambiado de plan exitosamente.\n Ya puedes disfrutar de todos los beneficios y funcionalidades de nuestro sistema.\n ¡Gracias por confiar en nosotros!\n Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.`,
+                        `<div style="font-family: Arial, sans-serif; color: #262626;">
+                            <h2>🎉 ¡Felicitaciones!</h2>
+                            <p>Has cambiado de plan <span style="color: #27ae60; font-weight: bold;">exitosamente</span>.</p>
+                            <p>Ya puedes disfrutar de todos los beneficios y funcionalidades del sistema.</p>
+                            <p>¡Gracias por confiar en nosotros!</p>
+                            <br/>
+                            <p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p>
+                        </div>`
+                    )
+
+                    return res.status(200).send({ data: "Received" })
+                }
 
                 await sendEmail(
                     company.email,
@@ -218,10 +259,38 @@ export const manageWebhooks = async (req: Request, res: Response): Promise<void 
                     </div>`
                 )
 
+            } else if (preapproval.status === "cancelled") {
+                console.log("Suscripción cancelada.")
+
+                if (company.suscription?.status_suscription === "upgrading") {
+                    console.log("Cancelación por upgrade, no se desactiva la empresa")
+                    return res.status(200).send({ data: "Received" })
+                }
+
+                if (company.suscription?.suscription_id !== preapproval.id) {
+                    console.log("Suscripción ya actualizada, no se desactiva la empresa")
+                    return res.status(200).send({ data: "Received" })
+                }
+
+                await CompanyModel.findByIdAndUpdate(companyId, {
+                    $set: { "suscription.status_suscription": "inactive" }
+                })
+
+                await sendEmail(
+                    company.email,
+                    "Tu suscripción a Bookify ha sido cancelada correctamente",
+                    `¡Hola!\n Tu suscripción a Bookify ha sido cancelada correctamente.\n`,
+                    `<div style="font-family: Arial, sans-serif; color: #262626;">
+                        <h2>¡Hola!</h2>
+                        <p>Tu suscripción a <strong>Bookify</strong> ha sido <span style="color: #e74c3c; font-weight: bold;">cancelada</span> correctamente.</p>
+                        <br/>
+                        <p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p>
+                    </div>`
+                )
             } else {
                 console.log("Suscripción rechazada.")
                 await CompanyModel.findByIdAndUpdate(companyId, {
-                    $set: { status_suscription: "inactive" }
+                    $set: { "suscription.status_suscription": "inactive" }
                 })
 
                 await sendEmail(

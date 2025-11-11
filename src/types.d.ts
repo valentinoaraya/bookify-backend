@@ -27,11 +27,11 @@ export interface CompanyInputs extends InputsCommon {
     street?: string | null
     number?: string | null
     suscription: {
-        plan: string,
+        plan: "individual" | "individual_plus" | "team",
         suscription_id?: string
-        status_suscription?: string,
+        status_suscription: "active" | "inactive" | "pending" | "upgrading" | "downgrading",
         start_date?: Date,
-        next_payment_date?: Date,
+        next_payment_date?: string,
     }
 }
 

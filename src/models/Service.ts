@@ -34,6 +34,7 @@ const pendingAppointment = new mongoose.Schema({
 
 const ServiceSchema = new Schema({
     companyId: { type: Schema.Types.ObjectId, ref: "Company", required: true },
+    active: { type: Boolean, required: true, default: true },
     title: { type: String, required: true },
     capacityPerShift: { type: Number, default: 1 },
     description: { type: String },
