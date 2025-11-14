@@ -6,6 +6,7 @@ import moment from "moment-timezone";
 import { PreApproval } from "mercadopago";
 import { mercadoPagoAedes } from "../services/mercadopagoService";
 import { BACK_URL_AEDES } from "../config";
+import { namesAndAmounts } from "../utils/planRules";
 
 export const createCompany = async (req: Request, res: Response): Promise<void | Response> => {
     const { payer_email } = req.body
@@ -15,21 +16,6 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
         if (!payer_email) throw new Error("Falta el correo del pagador")
 
         const company = await companyToAdd(req.body)
-
-        const namesAndAmounts = {
-            individual: {
-                name: "Plan Individual",
-                price: 12000
-            },
-            individual_plus: {
-                name: "Plan Individual Plus",
-                price: 18000
-            },
-            teams: {
-                name: "Plan Equipo",
-                price: 35000
-            },
-        }
 
         const companyFound = await CompanyModel.findOne({ email: company.email })
 
@@ -53,21 +39,21 @@ export const createCompany = async (req: Request, res: Response): Promise<void |
             }
         })
 
-        await newCompany.save()
         const tokens = createTokens({
             id: newCompany.id,
             name: newCompany.name,
             email: newCompany.email as Email
         })
 
-        await CompanyModel.findByIdAndUpdate(newCompany.id, {
-            refresh_token: tokens.refresh_token,
-            suscription: {
-                suscription_id: suscription.id,
-                next_payment_date: suscription.next_payment_date,
-                ...newCompany.suscription,
-            }
-        })
+        newCompany.refresh_token = tokens.refresh_token
+
+        newCompany.suscription = {
+            ...company.suscription,
+            suscription_id: suscription.id,
+            next_payment_date: suscription.next_payment_date,
+        }
+
+        await newCompany.save()
 
         res.status(200).send({
             data: {

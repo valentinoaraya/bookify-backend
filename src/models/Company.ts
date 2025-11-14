@@ -7,10 +7,10 @@ const reminderSchema = new Schema({
 
 const suscription = new Schema({
     suscription_id: { type: String },
-    plan: { type: String, enum: ["individual", "individual_plus", "team"] },
-    status_suscription: { type: String, enum: ["active", "inactive", "pending"], default: "pending" },
+    plan: { type: String, enum: ["individual", "individual_plus", "team"], required: true },
+    status_suscription: { type: String, enum: ["active", "inactive", "pending", "upgrading", "downgrading"], default: "pending", required: true },
     start_date: { type: Date },
-    next_payment_date: { type: Date },
+    next_payment_date: { type: String },
 })
 
 const CompanySchema = new Schema({

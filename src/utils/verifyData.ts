@@ -76,7 +76,9 @@ export const companyToAdd = async (object: any): Promise<CompanyInputs> => {
         password: hashedPassword,
         phone: parseInput(object.phone, "Teléfono").trim(),
         suscription: {
-            plan: parseInput(object.plan, "Plan").trim(),
+            plan: parseInput(object.plan, "Plan").trim() as any,
+            status_suscription: "pending",
+            start_date: new Date()
         }
     }
 
