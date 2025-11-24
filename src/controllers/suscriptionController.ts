@@ -28,7 +28,7 @@ const applyPlanBeneffits = async (companyId: string, newPlan: string) => {
 
     const rules = PLAN_RULES[newPlan];
 
-    const services = await ServiceModel.find({ companyId }).sort({ createdAt: 1 }); // opcional: mantener orden
+    const services = await ServiceModel.find({ companyId }).sort({ createdAt: 1 });
 
     const activeServices = services.filter(s => s.active);
     const inactiveServices = services.filter(s => !s.active);
@@ -120,7 +120,7 @@ export const downgradeSuscription = async (req: Request, res: Response): Promise
         await CompanyModel.findByIdAndUpdate(companyId, {
             $set: {
                 "suscription.plan": newPlan,
-                "suscription.status_suscription": "downgrading"
+                "suscription.status_suscription": "active"
             }
         })
 
