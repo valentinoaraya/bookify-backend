@@ -3,6 +3,7 @@ import { BasicInfoWithID, CompanyInputs, CompanyWithoutPassword, Email, Service,
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken"
 import { JWT_KEY } from "../config";
+import { normalizeEmail } from "../services/emailService";
 
 const isString = (param: any): boolean => {
     return (typeof param === "string" || param instanceof String)
@@ -55,11 +56,15 @@ const parseDate = (dateFromRequest: any): Date => {
 }
 
 export const verifyUserInputs = (object: any): UserData => {
+
+    const email = parseEmail(object.email)
+    const normalizedEmail = normalizeEmail(email)
+
     return {
         name: parseInput(object.name, "name").trim(),
         lastName: parseInput(object.lastName, "lastName").trim(),
         dni: parseInput(object.dni, "dni").trim(),
-        email: parseEmail(object.email),
+        email: normalizedEmail,
         phone: parseInput(object.phone, "phone").trim()
     }
 }

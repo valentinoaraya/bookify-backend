@@ -12,8 +12,36 @@ const transporter = nodemailer.createTransport({
     }
 });
 
+export const isValidEmail = (email: string) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+export const normalizeEmail = (email: string) => {
+    if (!email) return "";
+
+    const validEmail = isValidEmail(email)
+
+    if (!validEmail) return "";
+
+    let normalized = email.trim();
+    normalized = normalized.toLowerCase();
+
+    normalized = normalized.replace(/\.+$/, "");
+
+    return normalized;
+}
+
 export const sendEmail = async (to: Email | string, subject: string, text: string, html: string) => {
     try {
+
+        if (typeof to === "string") {
+            to = normalizeEmail(to);
+            if (!to) {
+                console.error("❌ Correo inválido proporcionado.");
+                return;
+            }
+        }
+
         await transporter.sendMail({
             from: '"Bookify" <valentinoaraya04@gmail.com>',
             to,
