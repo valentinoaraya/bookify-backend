@@ -42,7 +42,7 @@
     "mercadopago": "^2.3.0",
     "moment": "^2.30.1",
     "moment-timezone": "^0.5.47",
-    "mongoose": "^8.5.4",
+    "mongoose": "^8.9.5",
     "node-cron": "^3.0.3",
     "node-fetch": "^3.3.2",
     "nodemailer": "^6.10.0",
