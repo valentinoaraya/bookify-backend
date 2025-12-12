@@ -61,6 +61,9 @@ io.on("connection", (socket) => {
     })
 })
 
-server.listen(PORT, () => {
+server.listen({
+    port: PORT,
+    host: '127.0.0.1'
+}, () => {
     console.log(`Server runing on port ${PORT}`)
 })
