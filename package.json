@@ -31,7 +31,7 @@
     "typescript": "^5.5.4"
   },
   "dependencies": {
-    "bcrypt": "^5.1.1",
+    "bcrypt": "^6.0.0",
     "brevo": "^1.0.0",
     "bullmq": "^5.58.7",
     "cookie-parser": "^1.4.7",
