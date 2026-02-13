@@ -1,4 +1,4 @@
-export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string, appointmentID: string, mode: "in-person" | "online") => {
+export const emailConfirmAppointmentUser = (user: string, service: string, company: string, location: string, date: string, time: string, appointmentID: string, mode: "in-person" | "online" | "in-person-at-home") => {
 
   const cancelUrl = `https://bookify.aedestec.com/cancel/${appointmentID}`
 
@@ -22,7 +22,7 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
         </tr>
         <tr>
           <td style="padding: 4px 0; font-weight: 500;">Modalidad:</td>
-          <td style="padding: 4px 0;">${mode === "online" ? "Virtual" : "Presencial"}</td>
+          <td style="padding: 4px 0;">${mode === "online" ? "Virtual" : mode === "in-person" ? "Presencial en local" : "Presencial a domicilio"}</td>
         </tr>
       </table>
     </div>
@@ -31,8 +31,12 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
             <p>Si deseas cancelar el turno, puedes hacerlo haciendo click en el siguiente botón:</p>
             `
       :
-      `<p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
+      mode === "in-person" ?
+        `<p>Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
             <p>Si no puedes asistir, puedes cancelarlo haciendo click en el siguiente botón:</p>`
+        :
+        `<p>Este turno es presencial a domicilio, el personal se encontrará en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.</p>
+            <p>Si no puedes concretar el encuentro, puedes cancelarlo haciendo click en el siguiente botón:</p>`
     }
     
     <p>
@@ -48,13 +52,17 @@ export const emailConfirmAppointmentUser = (user: string, service: string, compa
     Servicio: ${service}\n    
     Fecha: ${date}\n    
     Hora: ${time} hs\n    
-    Modalidad: ${mode === "online" ? "Virtual" : "Presencial"}\n    
+    Modalidad: ${mode === "online" ? "Virtual" : mode === "in-person" ? "Presencial en local" : "Presencial a domicilio"}\n    
     ${mode === "online" ?
       `Este turno será virtual. El profesional te enviará el enlace de la reunión por correo o WhatsApp antes del horario acordado.\n
         Si deseas cancelar el turno, puedes hacerlo haciendo click en el siguiente enlace: ${cancelUrl}`
       :
-      `Se te espera en <strong>${location}</strong> el día <strong>${date}</strong> a las <strong>${time} hs</strong>.\n
+      mode === "in-person" ?
+        `Se te espera en ${location} el día ${date} a las ${time} hs.\n
         Si no puedes asistir, cancélalo en el siguiente enlace: ${cancelUrl}`
+        :
+        `Este turno es presencial a domicilio, el personal se encontrará en ${location} el día ${date} a las ${time} hs.\n
+          Si no puedes concretar el encuentro, puedes cancelarlo haciendo click en el siguiente enlace: ${cancelUrl}`
     }
     `
 

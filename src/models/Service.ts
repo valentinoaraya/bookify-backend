@@ -45,7 +45,7 @@ const ServiceSchema = new Schema({
     availableAppointments: [availableAppointment],
     scheduledAppointments: [{ type: Date, default: [] }],
     pendingAppointments: [pendingAppointment],
-    mode: { type: String, enum: ["in-person", "online"], default: "online" },
+    mode: { type: String, enum: ["in-person", "online", "in-person-at-home"], default: "online" },
     signPrice: { type: Number, default: 0 }
 })
 

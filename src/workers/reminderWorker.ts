@@ -34,6 +34,8 @@ export const reminderWorker = new Worker(
         const appointmentDate = moment(appointment.date).tz("America/Argentina/Buenos_Aires");
         const dateInString = appointmentDate.format("YYYY-MM-DD HH:mm");
 
+        const cancelUrl = `https://bookify.aedestec.com/cancel/${appointmentId}`
+
         let timeMessage = ""
         if (hoursBefore === 24) {
             timeMessage = "mañana"
@@ -53,13 +55,23 @@ export const reminderWorker = new Worker(
                     \nTe recordamos que tienes un turno ${timeMessage} ${appointment.mode === "in-person" ? "en" : "con"} ${appointment.companyId.name} para ${appointment.serviceId.title}.\n
                     \nFecha: ${formatDate(dateInString.split(' ')[0])} 
                     \nHora: ${dateInString.split(' ')[1]}\n
-                    \n${appointment.mode === "in-person" ? "¡No olvides asistir!" : "¡No olvides conectarte!"}`
+                    \n${appointment.mode === "in-person" ? "¡No olvides asistir!" : appointment.mode === "online" ? "¡No olvides conectarte!" : "Recuerda que el servicio es presencial a domicilio, el personal irá al lugar de encuentro."}\n
+                    \nSi no puedes asistir o concretar el encuentro, puedes cancelar haciendo click en el siguiente enlace: ${cancelUrl}`
+
 
         const htmlMessage = `<p>Hola ${appointment.name},</p>
                     <p>Te recordamos que tienes un turno ${timeMessage} ${appointment.mode === "in-person" ? "en" : "con"} <strong>${appointment.companyId.name}</strong> para <strong>${appointment.serviceId.title}</strong>.</p>
                     <p>Fecha: ${formatDate(dateInString.split(' ')[0])}</p>
                     <p>Hora: ${dateInString.split(' ')[1]}</p>
-                    <p>${appointment.mode === "in-person" ? "¡No olvides asistir!" : "¡No olvides conectarte!"}</p>`
+                    <p>${appointment.mode === "in-person" ? "¡No olvides asistir!" : appointment.mode === "online" ? "¡No olvides conectarte!" : "Recuerda que el servicio es presencial a domicilio, el personal irá al lugar de encuentro."}</p>
+                    <p>Si no puedes asistir o concretar el encuentro, puedes cancelarlo haciendo click en el siguiente botón:</p>           
+                    <p>
+                        <a href="${cancelUrl}" 
+                            style="display:inline-block;padding:10px 15px;background-color:#d9534f;color:white;text-decoration:none;border-radius:5px;">
+                            Cancelar turno
+                        </a>
+                    </p>`
+
 
         try {
             await sendEmail(appointment.email, subject, textMessage, htmlMessage);

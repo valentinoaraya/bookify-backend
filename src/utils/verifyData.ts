@@ -65,7 +65,8 @@ export const verifyUserInputs = (object: any): UserData => {
         lastName: parseInput(object.lastName, "lastName").trim(),
         dni: parseInput(object.dni, "dni").trim(),
         email: normalizedEmail,
-        phone: parseInput(object.phone, "phone").trim()
+        phone: parseInput(object.phone, "phone").trim(),
+        userLocation: object.userLocation ? parseInput(object.userLocation, "userLocation").trim() : undefined
     }
 }
 
@@ -163,7 +164,7 @@ export const serviceToAdd = (object: any): Service => {
         capacityPerShift: parseNumber(object.capacityPerShift, "Capacidad de personas") <= 0 ? 1 : parseNumber(object.capacityPerShift, "Capacidad de personas"),
         duration: parseNumber(object.duration, "Duración"),
         signPrice: parseNumber(object.signPrice, "Precio de seña"),
-        mode: object.mode && (object.mode === "in-person" || object.mode === "online") ? object.mode : "online"
+        mode: object.mode && (object.mode === "in-person" || object.mode === "online" || object.mode === "in-person-at-home") ? object.mode : "online"
     }
 
     return service
@@ -178,7 +179,7 @@ export const serviceToUpdate = (object: any) => {
     if (capacityPerShift != undefined && capacityPerShift > 0) updateFields.capacityPerShift = capacityPerShift
     if (duration != undefined) updateFields.duration = duration
     if (signPrice != undefined) updateFields.signPrice = signPrice
-    if (mode != undefined && (mode === "in-person" || mode === "online")) updateFields.mode = mode
+    if (mode != undefined && (mode === "in-person" || mode === "online" || mode === "in-person-at-home")) updateFields.mode = mode
 
     return updateFields
 }

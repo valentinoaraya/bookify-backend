@@ -45,6 +45,7 @@ export interface UserData {
     email: string
     phone: string
     dni: string
+    userLocation?: string
 }
 
 declare module "express-serve-static-core" {
@@ -61,7 +62,7 @@ export interface Service {
     price: number
     duration: number
     signPrice: number
-    mode: "in-person" | "online"
+    mode: "in-person" | "online" | "in-person-at-home"
 }
 
 export interface ServiceWithAppointments extends Service {
