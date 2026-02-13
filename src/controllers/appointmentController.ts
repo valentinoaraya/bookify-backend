@@ -671,6 +671,7 @@ export const getCompanyHistory = async (req: Request, res: Response): Promise<vo
                 phone: appointment.phone,
                 dni: appointment.dni,
                 mode: appointment.mode,
+                userLocation: appointment.userLocation,
                 duration: appointment.duration,
                 serviceId: {
                     _id: appointment.serviceId?._id,
