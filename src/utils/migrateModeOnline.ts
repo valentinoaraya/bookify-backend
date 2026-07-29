@@ -17,6 +17,7 @@ const migrateModeOnline = async () => {
 
         // Actualizar Services
         const serviceResult = await ServiceModel.updateMany(
+            {},
             { $set: { mode: "online" } }
         );
 
@@ -24,6 +25,7 @@ const migrateModeOnline = async () => {
 
         // Actualizar Appointments
         const appointmentResult = await AppointmentModel.updateMany(
+            {},
             { $set: { mode: "online" } }
         );
 

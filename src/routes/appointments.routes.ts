@@ -1,17 +1,3 @@
-import { Router } from "express";
-import { cancelAppointment, changeAppointmentStatus, checkOrderTime, confirmAppointment, deleteAppointment, finishAppointment, getAppointment, getCompanyHistory } from "../controllers/appointmentController";
-import { authenticateTokenCompany } from "../middlewares/verifyTokens";
-import { verifyDataUser } from "../middlewares/verifyDataUser";
-
-const appointmentsRouter = Router()
-
-appointmentsRouter.get("/get-appointment/:id", getAppointment)
-appointmentsRouter.post("/add-appointment", verifyDataUser, confirmAppointment)
-appointmentsRouter.put("/finish-appointment/:id", authenticateTokenCompany, finishAppointment)
-appointmentsRouter.delete("/cancel-appointment/:id", verifyDataUser, cancelAppointment)
-appointmentsRouter.delete("/delete-appointment/:id", authenticateTokenCompany, deleteAppointment)
-appointmentsRouter.get("/company-history/:companyId", authenticateTokenCompany, getCompanyHistory)
-appointmentsRouter.post("/check-booking-hour", checkOrderTime)
-appointmentsRouter.put("/change-status", authenticateTokenCompany, changeAppointmentStatus)
-
-export default appointmentsRouter
+/** Compatibilidad: rutas viven en modules/appointment. */
+import { composition } from "../composition"
+export default composition.appointmentRoutes

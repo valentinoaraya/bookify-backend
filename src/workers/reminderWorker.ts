@@ -3,8 +3,9 @@ import AppointmentModel from "../models/Appointment";
 import { sendEmail } from "../services/emailService";
 import moment from "moment-timezone";
 import { formatDate } from "../utils/formatDate";
-import { MONGOOSE_URL, REDIS_HOST, REDIS_PORT } from "../config";
+import { FRONTEND_URL, MONGOOSE_URL, REDIS_HOST, REDIS_PORT } from "../config";
 import mongoose from "mongoose";
+import { signCancelToken } from "../modules/appointment/cancel-token";
 import "../models/Service"
 import "../models/Company"
 
@@ -31,10 +32,15 @@ export const reminderWorker = new Worker(
             return;
         }
 
+        if (appointment.status !== "scheduled") {
+            console.log(`⚠️ Turno ${appointmentId} en estado ${appointment.status}: no se envía recordatorio`);
+            return;
+        }
+
         const appointmentDate = moment(appointment.date).tz("America/Argentina/Buenos_Aires");
         const dateInString = appointmentDate.format("YYYY-MM-DD HH:mm");
 
-        const cancelUrl = `https://bookify.aedestec.com/cancel/${appointmentId}`
+        const cancelUrl = `${FRONTEND_URL}/cancel/${signCancelToken(appointment._id, appointment.date)}`
 
         let timeMessage = ""
         if (hoursBefore === 24) {
