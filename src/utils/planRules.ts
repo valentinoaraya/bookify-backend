@@ -33,14 +33,14 @@ export const PLAN_RULES: Record<string, PlanRule> = {
 export const namesAndAmounts = {
 	individual: {
 		name: "Plan Individual",
-		price: 120,
+		price: 12000,
 	},
 	individual_plus: {
 		name: "Plan Individual Plus",
-		price: 180,
+		price: 18000,
 	},
 	team: {
 		name: "Plan Equipo",
-		price: 350,
+		price: 35000,
 	},
 };
