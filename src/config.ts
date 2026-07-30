@@ -1,21 +1,25 @@
-import dotenv from "dotenv"
-
-dotenv.config()
-
-export const FRONTEND_URL = process.env.FRONTEND_URL
-export const MONGOOSE_URL = process.env.MONGODB_URL_CONNECTION
-export const JWT_KEY = process.env.SECRET_JWT_KEY
-export const PORT = process.env.PORT
-export const NODEMAILER_HOST = process.env.NODEMAILER_HOST
-export const NODEMAILER_PORT = process.env.NODEMAILER_PORT
-export const NODEMAILER_USER = process.env.NODEMAILER_USER
-export const NODEMAILER_PASSWORD = process.env.NODEMAILER_PASSWORD
-export const ACCESS_TOKEN_MP = process.env.ACCESS_TOKEN_MP
-export const CLIENT_ID_MP = process.env.CLIENT_ID_MP
-export const CLIENT_SECRET_MP = process.env.CLIENT_SECRET_MP
-export const REDIRECT_URL_MP = process.env.REDIRECT_URL_MP
-export const ADMIN_API_KEY = process.env.ADMIN_API_KEY
-export const REDIS_HOST = process.env.REDIS_HOST
-export const REDIS_PORT = process.env.REDIS_PORT
-export const ACCESS_TOKEN_MP_AEDES = process.env.ACCESS_TOKEN_MP_AEDES
-export const BACK_URL_AEDES = process.env.BACK_URL_AEDES
+/**
+ * Re-export de compatibilidad.
+ * Preferir importar desde `./config/env` en código nuevo.
+ */
+export {
+    env,
+    FRONTEND_URL,
+    MONGOOSE_URL,
+    JWT_KEY,
+    PORT,
+    NODEMAILER_HOST,
+    NODEMAILER_PORT,
+    NODEMAILER_USER,
+    NODEMAILER_PASSWORD,
+    ACCESS_TOKEN_MP,
+    CLIENT_ID_MP,
+    CLIENT_SECRET_MP,
+    REDIRECT_URL_MP,
+    NOTIFICATION_URL_MP,
+    ADMIN_API_KEY,
+    REDIS_HOST,
+    REDIS_PORT,
+    ACCESS_TOKEN_MP_AEDES,
+    BACK_URL_AEDES,
+} from "./config/env"

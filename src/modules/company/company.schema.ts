@@ -1,0 +1,51 @@
+import { z } from "zod"
+
+const registerPlanEnum = z.enum(["individual", "individual_plus"], {
+    message: "Plan no disponible",
+})
+
+export const registerCompanySchema = z.object({
+    name: z.string().min(1, "Nombre requerido"),
+    email: z.string().email("Email incorrecto o incompleto."),
+    password: z.string().min(6, "La contraseña debe contener al menos 6 caracteres"),
+    phone: z.string().min(1, "Teléfono requerido"),
+    plan: registerPlanEnum,
+    payer_email: z.string().email("Falta el correo del pagador"),
+    province: z.string().min(1, "Provincia requerida"),
+    city: z.string().min(1, "Ciudad requerida"),
+    street: z.string().min(1, "Calle requerida"),
+    number: z.string().min(1, "Número de calle requerido"),
+})
+
+export const loginCompanySchema = z.object({
+    email: z.string().email("Email incorrecto o incompleto."),
+    password: z.string().min(6, "La contraseña debe contener al menos 6 caracteres"),
+})
+
+export const updateCompanySchema = z
+    .object({
+        name: z.string().min(1).optional(),
+        phone: z.string().min(1).optional(),
+        email: z.string().email().optional(),
+        province: z.string().optional(),
+        city: z.string().optional(),
+        street: z.string().optional(),
+        number: z.union([z.string(), z.number()]).optional(),
+        company_id: z.string().min(1).optional(),
+        reminders: z
+            .array(
+                z.object({
+                    hoursBefore: z.number(),
+                    services: z.array(z.any()),
+                })
+            )
+            .optional(),
+        cancellationAnticipationHours: z.number().optional(),
+        bookingAnticipationHours: z.number().optional(),
+        slotsVisibilityDays: z.number().optional(),
+    })
+    .passthrough()
+
+export type RegisterCompanyDto = z.infer<typeof registerCompanySchema>
+export type LoginCompanyDto = z.infer<typeof loginCompanySchema>
+export type UpdateCompanyDto = z.infer<typeof updateCompanySchema>

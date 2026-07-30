@@ -1,0 +1,45 @@
+# Redis para BullMQ (recordatorios).
+# Uso: docker compose up -d
+# Status: docker compose ps
+# Logs:  docker compose logs -f redis
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: bookify-redis
+    restart: unless-stopped
+    ports:
+      # Solo localhost: PM2 en el mismo servidor usa 127.0.0.1:6379
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --save
+      - "60"
+      - "1"
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    # Tope del contenedor (un poco > maxmemory) para evitar OOM kill del host
+    mem_limit: 320m
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  redis_data:
+    name: bookify-redis-data
