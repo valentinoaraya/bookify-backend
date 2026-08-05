@@ -4,18 +4,33 @@ const registerPlanEnum = z.enum(["individual", "individual_plus"], {
     message: "Plan no disponible",
 })
 
-export const registerCompanySchema = z.object({
-    name: z.string().min(1, "Nombre requerido"),
-    email: z.string().email("Email incorrecto o incompleto."),
-    password: z.string().min(6, "La contraseña debe contener al menos 6 caracteres"),
-    phone: z.string().min(1, "Teléfono requerido"),
-    plan: registerPlanEnum,
-    payer_email: z.string().email("Falta el correo del pagador"),
-    province: z.string().min(1, "Provincia requerida"),
-    city: z.string().min(1, "Ciudad requerida"),
-    street: z.string().min(1, "Calle requerida"),
-    number: z.string().min(1, "Número de calle requerido"),
-})
+export const registerCompanySchema = z
+    .object({
+        name: z.string().min(1, "Nombre requerido"),
+        email: z.string().email("Email incorrecto o incompleto."),
+        password: z
+            .string()
+            .min(6, "La contraseña debe contener al menos 6 caracteres"),
+        phone: z.string().min(1, "Teléfono requerido"),
+        plan: registerPlanEnum,
+        payer_email: z.string().optional(),
+        province: z.string().min(1, "Provincia requerida"),
+        city: z.string().min(1, "Ciudad requerida"),
+        street: z.string().min(1, "Calle requerida"),
+        number: z.string().min(1, "Número de calle requerido"),
+    })
+    .superRefine((data, ctx) => {
+        if (data.plan !== "individual") {
+            const email = data.payer_email?.trim()
+            if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: "Falta el correo del pagador",
+                    path: ["payer_email"],
+                })
+            }
+        }
+    })
 
 export const loginCompanySchema = z.object({
     email: z.string().email("Email incorrecto o incompleto."),

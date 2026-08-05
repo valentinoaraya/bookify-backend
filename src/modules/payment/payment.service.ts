@@ -9,6 +9,8 @@ import { logger } from "../../shared/logger";
 import { CompanyRepository } from "../company/company.repository";
 import { ServiceRepository } from "../service/service.repository";
 import { SubscriptionService } from "../subscription/subscription.service";
+import { SubscriptionRepository } from "../subscription/subscription.repository";
+import { planAllowsIntegrations } from "../../utils/planRules";
 import { MercadoPagoPaymentGateway } from "./refund.gateway";
 import { UserData } from "../../types";
 import {
@@ -35,6 +37,7 @@ export class PaymentService {
 		private readonly serviceRepository: ServiceRepository,
 		private readonly paymentGateway: MercadoPagoPaymentGateway,
 		private readonly subscriptionService: SubscriptionService,
+		private readonly subscriptionRepository: SubscriptionRepository,
 	) {}
 
 	setAppointmentPort(port: PaymentAppointmentPort): void {
@@ -187,6 +190,16 @@ export class PaymentService {
 		}
 		const empresa = await this.companyRepository.findById(empresaId);
 		if (!empresa) throw new NotFoundError("Empresa no encontrada.");
+
+		const subscription =
+			await this.subscriptionRepository.findByCompanyId(empresaId);
+		const plan = subscription?.plan || "individual";
+		if (!planAllowsIntegrations(plan)) {
+			throw new ForbiddenError(
+				"Tu plan no incluye vinculación con Mercado Pago. Actualizá a Individual Plus o Equipo.",
+			);
+		}
+
 		if (!env.CLIENT_ID_MP || !env.REDIRECT_URL_MP) {
 			throw new Error("No es posible generar la URL: Faltan parámetros.");
 		}

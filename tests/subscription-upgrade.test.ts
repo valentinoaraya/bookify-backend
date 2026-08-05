@@ -61,6 +61,10 @@ describe("SubscriptionService upgrade hardening", () => {
                 status: "active",
                 mpPreapprovalId: "old-pre",
             }),
+            claimAbortFreeUpgrade: vi.fn().mockResolvedValue({
+                status: "active",
+            }),
+            unsetMpPreapproval: vi.fn().mockResolvedValue({}),
             claimAuthorizedUpgrade: vi.fn().mockResolvedValue({
                 status: "active",
                 plan: "individual_plus",
@@ -84,6 +88,7 @@ describe("SubscriptionService upgrade hardening", () => {
             findByCompanySorted: vi.fn().mockResolvedValue([]),
             activateMany: vi.fn(),
             deactivateMany: vi.fn(),
+            clearSignPricesByCompany: vi.fn(),
         }
         companyRepository = {
             findById: vi.fn().mockResolvedValue({
@@ -411,5 +416,73 @@ describe("SubscriptionService upgrade hardening", () => {
 
         expect(abortSpy).toHaveBeenCalledWith(companyId)
         expect(result.abortedUpgrades).toBe(1)
+    })
+
+    it("upgrade desde plan free crea preapproval sin previous real", async () => {
+        subscriptionRepository.findByCompanyId.mockResolvedValue({
+            _id: subId,
+            status: "active",
+            plan: "individual",
+        })
+
+        await subscriptionService.upgrade("free", {
+            newPlan: "individual_plus",
+            payer_email: "p@p.com",
+            companyId,
+        })
+
+        expect(subscriptionRepository.beginTransition).toHaveBeenCalledWith(
+            companyId,
+            "active",
+            "upgrading",
+            expect.objectContaining({
+                pendingPlan: "individual_plus",
+                previousPreapprovalId: "__free__",
+            })
+        )
+        expect(mpGateway.createPreApproval).toHaveBeenCalled()
+    })
+
+    it("abortUpgrade desde free limpia el preapproval nuevo", async () => {
+        subscriptionRepository.findByCompanyId.mockResolvedValue({
+            _id: subId,
+            status: "upgrading",
+            plan: "individual",
+            pendingPlan: "individual_plus",
+            mpPreapprovalId: "new-pre",
+            previousPreapprovalId: "__free__",
+        })
+
+        const result = await subscriptionService.abortUpgrade(companyId)
+
+        expect(subscriptionRepository.claimAbortFreeUpgrade).toHaveBeenCalledWith(
+            companyId,
+            "new-pre"
+        )
+        expect(mpGateway.cancelPreApproval).toHaveBeenCalledWith("new-pre")
+        expect(result.status).toBe("active")
+    })
+
+    it("authorized desde free no cancela previous marker", async () => {
+        subscriptionRepository.findByCompanyId.mockResolvedValue({
+            _id: subId,
+            status: "upgrading",
+            plan: "individual",
+            pendingPlan: "individual_plus",
+            mpPreapprovalId: "new-pre",
+            previousPreapprovalId: "__free__",
+        })
+        preApprovalGet.mockResolvedValue({
+            id: "new-pre",
+            status: "authorized",
+            external_reference: companyId,
+            next_payment_date: "2030-01-01",
+        })
+        applyBenefitsSpy.mockResolvedValue(undefined)
+
+        await subscriptionService.handlePreapprovalWebhook("new-pre")
+
+        expect(mpGateway.cancelPreApproval).not.toHaveBeenCalled()
+        expect(applyBenefitsSpy).toHaveBeenCalledWith(companyId, "individual_plus")
     })
 })

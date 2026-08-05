@@ -18,6 +18,7 @@ import {
     RegisterCompanyInput,
     UpdateCompanyInput,
 } from "./company.types"
+import { isPaidPlan } from "../../utils/planRules"
 
 export class CompanyService {
     constructor(
@@ -31,7 +32,8 @@ export class CompanyService {
     ) {}
 
     async register(input: RegisterCompanyInput) {
-        if (!input.payer_email) {
+        const paid = isPaidPlan(input.plan)
+        if (paid && !input.payer_email?.trim()) {
             throw new ValidationError("Falta el correo del pagador")
         }
 
@@ -44,6 +46,7 @@ export class CompanyService {
         }
 
         const hashedPassword = await this.authService.hashPassword(input.password)
+        const payerEmail = input.payer_email?.trim().toLowerCase() || undefined
 
         let newCompany = null as Awaited<ReturnType<CompanyRepository["create"]>> | null
         let subscriptionId: Types.ObjectId | null = null
@@ -59,14 +62,45 @@ export class CompanyService {
                 city: input.city.trim(),
                 street: input.street.trim(),
                 number: String(input.number).trim(),
-                payer_email: input.payer_email.trim().toLowerCase(),
+                payer_email: payerEmail,
             })
 
-            const mpSubscription = await this.mpSubscriptionGateway.createPreApproval({
-                companyId: newCompany.id,
-                plan: input.plan,
-                payerEmail: input.payer_email,
-            })
+            if (!paid) {
+                const subscription =
+                    await this.subscriptionRepository.createForCompany({
+                        companyId: newCompany._id,
+                        plan: input.plan,
+                        status: "active",
+                        startDate: new Date(),
+                    })
+                subscriptionId = subscription._id
+
+                const tokens = this.authService.createTokens({
+                    id: newCompany._id,
+                    name: newCompany.name,
+                    email: newCompany.email as Email,
+                })
+
+                newCompany.refresh_token = tokens.refresh_token
+                newCompany.subscriptionId = subscription._id
+                await newCompany.save()
+
+                return CompanyMapper.toRegisterResponse({
+                    id: newCompany.id,
+                    name: newCompany.name,
+                    email: newCompany.email,
+                    access_token: tokens.access_token,
+                    refresh_token: tokens.refresh_token,
+                    requiresPayment: false,
+                })
+            }
+
+            const mpSubscription =
+                await this.mpSubscriptionGateway.createPreApproval({
+                    companyId: newCompany.id,
+                    plan: input.plan,
+                    payerEmail: payerEmail!,
+                })
 
             if (!mpSubscription.id || !mpSubscription.init_point) {
                 if (mpSubscription.id) {
@@ -106,6 +140,7 @@ export class CompanyService {
                 email: newCompany.email,
                 access_token: tokens.access_token,
                 refresh_token: tokens.refresh_token,
+                requiresPayment: true,
             })
         } catch (error) {
             if (mpPreapprovalId) {
@@ -134,7 +169,7 @@ export class CompanyService {
         city: string
         street: string
         number: string
-        payer_email: string
+        payer_email?: string
     }) {
         const maxAttempts = 5
         let lastError: unknown

@@ -115,7 +115,8 @@ const paymentService = new PaymentService(
     companyRepository,
     serviceRepository,
     paymentGateway,
-    subscriptionService
+    subscriptionService,
+    subscriptionRepository
 )
 paymentService.setAppointmentPort(appointmentService)
 

@@ -34,6 +34,15 @@ export class ServiceRepository extends BaseRepository<ServiceDocument> {
         await this.model.updateMany({ _id: { $in: ids } }, { $set: { active: true } })
     }
 
+    async clearSignPricesByCompany(
+        companyId: string | Types.ObjectId
+    ): Promise<void> {
+        await this.model.updateMany(
+            { companyId },
+            { $set: { signPrice: 0, updatedAt: new Date() } }
+        )
+    }
+
     async findByCompanySorted(companyId: string | Types.ObjectId): Promise<ServiceDocument[]> {
         return this.model.find({ companyId }).sort({ createdAt: 1 }).exec()
     }

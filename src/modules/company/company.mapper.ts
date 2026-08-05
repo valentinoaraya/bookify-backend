@@ -100,7 +100,7 @@ export class CompanyMapper {
         }
     }
 
-    /** Respuesta de registro + init_point MP. */
+    /** Respuesta de registro (+ init_point MP si el plan es de pago). */
     static toRegisterResponse(data: {
         init_point?: string
         id: string
@@ -108,6 +108,7 @@ export class CompanyMapper {
         email: string
         access_token: string
         refresh_token: string
+        requiresPayment?: boolean
     }) {
         return data
     }
