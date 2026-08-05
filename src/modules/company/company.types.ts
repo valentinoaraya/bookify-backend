@@ -64,7 +64,7 @@ export interface RegisterCompanyInput {
     password: string
     phone: string
     plan: PlanType
-    payer_email: string
+    payer_email?: string
     province: string
     city: string
     street: string

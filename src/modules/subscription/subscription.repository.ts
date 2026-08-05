@@ -1,6 +1,7 @@
 import { Types, UpdateQuery } from "mongoose"
 import { BaseRepository } from "../../shared/base/base.repository"
 import { ValidationError } from "../../shared/errors"
+import { FREE_UPGRADE_MARKER } from "../../utils/planRules"
 import SubscriptionModel from "./subscription.model"
 import {
     SubscriptionApiShape,
@@ -200,6 +201,53 @@ export class SubscriptionRepository extends BaseRepository<SubscriptionDocument>
                 { new: true }
             )
             .exec()
+    }
+
+    /**
+     * Abort de upgrade iniciado desde plan free: limpia el PreApproval nuevo.
+     */
+    async claimAbortFreeUpgrade(
+        companyId: string | Types.ObjectId,
+        newPreapprovalId: string
+    ): Promise<SubscriptionDocument | null> {
+        return this.model
+            .findOneAndUpdate(
+                {
+                    companyId,
+                    status: "upgrading",
+                    mpPreapprovalId: newPreapprovalId,
+                    previousPreapprovalId: FREE_UPGRADE_MARKER,
+                },
+                {
+                    $set: {
+                        status: "active",
+                        updatedAt: new Date(),
+                    },
+                    $unset: {
+                        mpPreapprovalId: 1,
+                        pendingPlan: 1,
+                        previousPreapprovalId: 1,
+                        transitionStartedAt: 1,
+                        nextPaymentDate: 1,
+                    },
+                },
+                { new: true }
+            )
+            .exec()
+    }
+
+    async unsetMpPreapproval(
+        companyId: string | Types.ObjectId
+    ): Promise<SubscriptionDocument | null> {
+        const sub = await this.findByCompanyId(companyId)
+        if (!sub) return null
+        return this.updateById(sub._id, {
+            $unset: {
+                mpPreapprovalId: 1,
+                nextPaymentDate: 1,
+            },
+            $set: { updatedAt: new Date() },
+        })
     }
 
     /**

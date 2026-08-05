@@ -134,18 +134,54 @@ describe("CompanyService", () => {
     })
 
     describe("register", () => {
-        const registerInput = {
+        const paidRegisterInput = {
             name: "Co",
             email: "a@b.com",
             password: "secret1",
             phone: "123",
-            plan: "individual" as const,
+            plan: "individual_plus" as const,
             payer_email: "payer@b.com",
             province: "Buenos Aires",
             city: "La Plata",
             street: "Calle",
             number: "100",
         }
+
+        const freeRegisterInput = {
+            ...paidRegisterInput,
+            plan: "individual" as const,
+            payer_email: undefined,
+        }
+
+        it("registra plan free sin Mercado Pago y deja la suscripción active", async () => {
+            companyRepository.findByEmail.mockResolvedValue(null)
+            const savedId = new Types.ObjectId()
+            const save = vi.fn()
+            companyRepository.create.mockResolvedValue({
+                _id: savedId,
+                id: savedId.toString(),
+                name: "Co",
+                email: "a@b.com",
+                save,
+            })
+            const subId = new Types.ObjectId()
+            subscriptionRepository.createForCompany.mockResolvedValue({
+                _id: subId,
+            })
+
+            const result = await companyService.register(freeRegisterInput)
+
+            expect(mpGateway.createPreApproval).not.toHaveBeenCalled()
+            expect(subscriptionRepository.createForCompany).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    plan: "individual",
+                    status: "active",
+                })
+            )
+            expect(result.requiresPayment).toBe(false)
+            expect(result.init_point).toBeUndefined()
+            expect(result.access_token).toBe("access")
+        })
 
         it("hace rollback si falla PreApproval", async () => {
             companyRepository.findByEmail.mockResolvedValue(null)
@@ -159,7 +195,7 @@ describe("CompanyService", () => {
             })
             mpGateway.createPreApproval.mockRejectedValue(new Error("MP down"))
 
-            await expect(companyService.register(registerInput)).rejects.toThrow("MP down")
+            await expect(companyService.register(paidRegisterInput)).rejects.toThrow("MP down")
 
             expect(companyRepository.deleteById).toHaveBeenCalledWith(savedId)
             expect(mpGateway.cancelPreApproval).not.toHaveBeenCalled()
@@ -180,7 +216,7 @@ describe("CompanyService", () => {
                 init_point: undefined,
             })
 
-            await expect(companyService.register(registerInput)).rejects.toBeInstanceOf(
+            await expect(companyService.register(paidRegisterInput)).rejects.toBeInstanceOf(
                 ValidationError
             )
 
@@ -206,7 +242,7 @@ describe("CompanyService", () => {
                 new Error("DB fail")
             )
 
-            await expect(companyService.register(registerInput)).rejects.toThrow("DB fail")
+            await expect(companyService.register(paidRegisterInput)).rejects.toThrow("DB fail")
 
             expect(mpGateway.cancelPreApproval).toHaveBeenCalledWith("pre-2")
             expect(companyRepository.deleteById).toHaveBeenCalledWith(savedId)

@@ -6,7 +6,7 @@ import {
     ValidationError,
 } from "../../shared/errors"
 import { parseBaTz, BA_TIMEZONE } from "../../shared/utils/datetime"
-import { PLAN_RULES } from "../../utils/planRules"
+import { PLAN_RULES, planAllowsIntegrations } from "../../utils/planRules"
 import { CompanyRepository } from "../company/company.repository"
 import { SlotMapper } from "../slot/slot.mapper"
 import { SlotRepository } from "../slot/slot.repository"
@@ -55,12 +55,20 @@ export class ServiceService {
 
         const subscription = await this.subscriptionRepository.findByCompanyId(companyId)
         const plan = subscription?.plan || "individual"
-        const maxServices = PLAN_RULES[plan]?.max_services ?? 5
-        if (companyDb.services.length >= maxServices) {
+        const maxServices = PLAN_RULES[plan]?.max_services ?? 3
+        const existingServices = await this.serviceRepository.findByCompany(companyId)
+        const activeCount = existingServices.filter((s) => s.active).length
+        if (activeCount >= maxServices) {
             throw new ForbiddenError(
                 "Has alcanzado el límite de servicios para tu plan. Actualiza tu plan para agregar más servicios."
             )
         }
+
+        const allowsIntegrations = planAllowsIntegrations(plan)
+        const signPrice =
+            allowsIntegrations && companyDb.connectedWithMP
+                ? input.signPrice
+                : 0
 
         const capacityPerShift = input.capacityPerShift <= 0 ? 1 : input.capacityPerShift
         const savedService = await this.serviceRepository.create({
@@ -70,7 +78,7 @@ export class ServiceService {
             price: input.price,
             capacityPerShift,
             duration: input.duration,
-            signPrice: input.signPrice,
+            signPrice,
             mode: input.mode || "online",
             active: true,
         })
@@ -126,7 +134,20 @@ export class ServiceService {
             fieldsToUpdate.capacityPerShift = body.capacityPerShift
         }
         if (body.duration != undefined) fieldsToUpdate.duration = body.duration
-        if (body.signPrice != undefined) fieldsToUpdate.signPrice = body.signPrice
+        if (body.signPrice != undefined) {
+            const subscription =
+                await this.subscriptionRepository.findByCompanyId(
+                    serviceBeforeUpdate.companyId
+                )
+            const plan = subscription?.plan || "individual"
+            const company = await this.companyRepository.findById(
+                serviceBeforeUpdate.companyId
+            )
+            fieldsToUpdate.signPrice =
+                planAllowsIntegrations(plan) && company?.connectedWithMP
+                    ? body.signPrice
+                    : 0
+        }
         if (
             body.mode != undefined &&
             (body.mode === "in-person" ||

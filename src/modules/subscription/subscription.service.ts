@@ -1,7 +1,7 @@
 import { MercadoPagoSubscriptionGateway } from "../../infrastructure/mercadopago/subscription.gateway"
 import { PreApproval } from "mercadopago"
 import { mercadoPagoAedes } from "../../services/mercadopagoService"
-import { namesAndAmounts, PLAN_RULES } from "../../utils/planRules"
+import { namesAndAmounts, PLAN_RULES, FREE_UPGRADE_MARKER, FREE_PLAN, planAllowsIntegrations } from "../../utils/planRules"
 import { ForbiddenError, NotFoundError, ValidationError } from "../../shared/errors"
 import { logger } from "../../shared/logger"
 import { CompanyRepository } from "../company/company.repository"
@@ -96,6 +96,28 @@ export class SubscriptionService {
         }
     }
 
+    private isFreeSubscription(subscription: SubscriptionDocument | null): boolean {
+        return Boolean(
+            subscription &&
+                subscription.plan === FREE_PLAN &&
+                !subscription.mpPreapprovalId
+        )
+    }
+
+    private async disconnectMercadoPago(companyId: string) {
+        await this.companyRepository.updateById(companyId, {
+            $set: {
+                connectedWithMP: false,
+                mp_access_token: "",
+                mp_refresh_token: "",
+                token_expires_in: 0,
+                mp_user_id: "",
+                updatedAt: new Date(),
+            },
+        })
+        await this.serviceRepository.clearSignPricesByCompany(companyId)
+    }
+
     private async applyPlanRestrictions(companyId: string, newPlan: string) {
         const company = await this.companyRepository.findById(companyId)
         if (!company) throw new NotFoundError("Empresa no encontrada.")
@@ -108,6 +130,10 @@ export class SubscriptionService {
             await this.serviceRepository.deactivateMany(
                 toDeactivate.map((s) => s._id)
             )
+        }
+
+        if (!planAllowsIntegrations(newPlan)) {
+            await this.disconnectMercadoPago(companyId)
         }
     }
 
@@ -135,6 +161,7 @@ export class SubscriptionService {
     /**
      * Upgrade: crea un preapproval nuevo SIN cancelar el actual.
      * El plan vigente no cambia hasta webhook authorized (`pendingPlan`).
+     * Desde plan free (sin PreApproval) usa FREE_UPGRADE_MARKER como previous.
      */
     async upgrade(
         suscriptionId: string,
@@ -143,10 +170,27 @@ export class SubscriptionService {
         const current = await this.subscriptionRepository.findByCompanyId(
             input.companyId
         )
-        this.assertOwnedPreapproval(current, suscriptionId)
-        this.assertUpgradePlan(current!.plan, input.newPlan)
+        if (!current) {
+            throw new NotFoundError("Suscripción no encontrada.")
+        }
 
-        const previousId = current!.mpPreapprovalId as string
+        const fromFree = this.isFreeSubscription(current)
+        if (fromFree) {
+            const allowedIds = ["", "free", "none", FREE_UPGRADE_MARKER]
+            if (suscriptionId && !allowedIds.includes(suscriptionId)) {
+                throw new ForbiddenError(
+                    "La suscripción no corresponde a esta empresa."
+                )
+            }
+        } else {
+            this.assertOwnedPreapproval(current, suscriptionId)
+        }
+
+        this.assertUpgradePlan(current.plan, input.newPlan)
+
+        const previousId = fromFree
+            ? FREE_UPGRADE_MARKER
+            : (current.mpPreapprovalId as string)
         const now = new Date()
 
         await this.subscriptionRepository.beginTransition(
@@ -202,13 +246,25 @@ export class SubscriptionService {
 
             return { init_point: mpSubscription.init_point }
         } catch (error) {
-            await this.subscriptionRepository.clearTransitionFields(
-                input.companyId,
-                {
-                    status: "active",
-                    mpPreapprovalId: previousId,
-                }
-            )
+            if (fromFree) {
+                await this.subscriptionRepository.clearTransitionFields(
+                    input.companyId,
+                    {
+                        status: "active",
+                    }
+                )
+                await this.subscriptionRepository.unsetMpPreapproval(
+                    input.companyId
+                )
+            } else {
+                await this.subscriptionRepository.clearTransitionFields(
+                    input.companyId,
+                    {
+                        status: "active",
+                        mpPreapprovalId: previousId,
+                    }
+                )
+            }
             throw error
         }
     }
@@ -220,8 +276,54 @@ export class SubscriptionService {
         const current = await this.subscriptionRepository.findByCompanyId(
             input.companyId
         )
+        if (!current) {
+            throw new NotFoundError("Suscripción no encontrada.")
+        }
+        this.assertDowngradePlan(current.plan, input.newPlan)
+
+        const toFree = input.newPlan === FREE_PLAN
+
+        if (toFree) {
+            if (current.mpPreapprovalId) {
+                this.assertOwnedPreapproval(current, suscriptionId)
+            }
+
+            await this.subscriptionRepository.beginTransition(
+                input.companyId,
+                "active",
+                "downgrading",
+                { transitionStartedAt: new Date() }
+            )
+
+            try {
+                if (current.mpPreapprovalId) {
+                    await this.mpSubscriptionGateway.cancelPreApproval(
+                        current.mpPreapprovalId
+                    )
+                }
+
+                await this.subscriptionRepository.clearTransitionFields(
+                    input.companyId,
+                    {
+                        status: "active",
+                        plan: FREE_PLAN,
+                    }
+                )
+                await this.subscriptionRepository.unsetMpPreapproval(
+                    input.companyId
+                )
+                await this.applyPlanRestrictions(input.companyId, FREE_PLAN)
+                return "Plan changed succesfully"
+            } catch (error) {
+                await this.subscriptionRepository.clearTransitionFields(
+                    input.companyId,
+                    { status: "active" }
+                )
+                throw error
+            }
+        }
+
         this.assertOwnedPreapproval(current, suscriptionId)
-        this.assertDowngradePlan(current!.plan, input.newPlan)
 
         await this.subscriptionRepository.beginTransition(
             input.companyId,
@@ -481,6 +583,7 @@ export class SubscriptionService {
     /**
      * Aborta un upgrade en curso: cancela el preapproval nuevo y restaura el anterior.
      * Primero reclama la DB (CAS) para no pelearse con un webhook authorized.
+     * Desde free, previous es FREE_UPGRADE_MARKER y se limpia el mpPreapprovalId.
      */
     async abortUpgrade(companyId: string): Promise<{ status: string }> {
         const subscription =
@@ -495,6 +598,21 @@ export class SubscriptionService {
             throw new ValidationError(
                 "No se pudo restaurar la suscripción anterior. Contactá soporte."
             )
+        }
+
+        if (previousId === FREE_UPGRADE_MARKER) {
+            const claimed =
+                await this.subscriptionRepository.claimAbortFreeUpgrade(
+                    companyId,
+                    newPreapprovalId
+                )
+            if (!claimed) {
+                throw new ValidationError(
+                    "El cambio de plan ya se confirmó o fue cancelado. Recargá el panel."
+                )
+            }
+            await this.mpSubscriptionGateway.cancelPreApproval(newPreapprovalId)
+            return { status: "active" }
         }
 
         const claimed = await this.subscriptionRepository.claimAbortUpgrade(
@@ -710,10 +828,21 @@ export class SubscriptionService {
                 { preapprovalId: eventPreapprovalId, status: preapproval.status },
                 "Preapproval nuevo en estado no autorizado — rollback a previous"
             )
-            await this.subscriptionRepository.clearTransitionFields(companyId, {
-                status: "active",
-                mpPreapprovalId: previousPreapprovalId,
-            })
+            if (previousPreapprovalId === FREE_UPGRADE_MARKER) {
+                await this.subscriptionRepository.clearTransitionFields(
+                    companyId,
+                    { status: "active" }
+                )
+                await this.subscriptionRepository.unsetMpPreapproval(companyId)
+            } else {
+                await this.subscriptionRepository.clearTransitionFields(
+                    companyId,
+                    {
+                        status: "active",
+                        mpPreapprovalId: previousPreapprovalId,
+                    }
+                )
+            }
             return { status: 200, payload: { data: "Received" } }
         }
 
@@ -817,7 +946,7 @@ export class SubscriptionService {
                 return { status: 200, payload: { data: "Received" } }
             }
 
-            if (previousId) {
+            if (previousId && previousId !== FREE_UPGRADE_MARKER) {
                 await this.mpSubscriptionGateway.cancelPreApproval(previousId)
             }
             await this.applyPlanBenefits(companyId, plan)
@@ -942,11 +1071,22 @@ export class SubscriptionService {
             cancelledPreapprovalId === currentPreapprovalId
         ) {
             logger.info("Upgrade fallido — rollback a active.")
-            const restoreId = previousPreapprovalId ?? currentPreapprovalId
-            await this.subscriptionRepository.clearTransitionFields(companyId, {
-                status: "active",
-                mpPreapprovalId: restoreId,
-            })
+            if (previousPreapprovalId === FREE_UPGRADE_MARKER) {
+                await this.subscriptionRepository.clearTransitionFields(
+                    companyId,
+                    { status: "active" }
+                )
+                await this.subscriptionRepository.unsetMpPreapproval(companyId)
+            } else {
+                const restoreId = previousPreapprovalId ?? currentPreapprovalId
+                await this.subscriptionRepository.clearTransitionFields(
+                    companyId,
+                    {
+                        status: "active",
+                        mpPreapprovalId: restoreId,
+                    }
+                )
+            }
             return { status: 200, payload: { data: "Received" } }
         }
 

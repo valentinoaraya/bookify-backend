@@ -65,7 +65,8 @@ describe("PaymentService.createPreference", () => {
             companyRepository as unknown as CompanyRepository,
             serviceRepository as unknown as ServiceRepository,
             paymentGateway as unknown as MercadoPagoPaymentGateway,
-            {} as unknown as SubscriptionService
+            {} as unknown as SubscriptionService,
+            { findByCompanyId: vi.fn() } as never
         )
     })
 
