@@ -16,6 +16,13 @@ export class ServiceRepository extends BaseRepository<ServiceDocument> {
         return this.model.findById(id).lean().exec() as Promise<ServiceDocument | null>
     }
 
+    async findAutoGenerateActive(): Promise<ServiceDocument[]> {
+        return this.model
+            .find({ autoGenerateSlots: true, active: true, workSchedule: { $exists: true } })
+            .lean()
+            .exec() as unknown as Promise<ServiceDocument[]>
+    }
+
     async setFields(
         id: string | Types.ObjectId,
         fields: UpdateQuery<ServiceDocument>

@@ -7,12 +7,19 @@ const SlotSchema = new Schema<SlotDocument>({
     datetime: { type: Date, required: true },
     capacity: { type: Number, required: true, min: 1 },
     taken: { type: Number, required: true, min: 0, default: 0 },
+    source: {
+        type: String,
+        enum: ["auto", "manual"],
+        required: true,
+        default: "manual",
+    },
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
 })
 
 SlotSchema.index({ serviceId: 1, datetime: 1 }, { unique: true })
 SlotSchema.index({ companyId: 1, datetime: 1 })
+SlotSchema.index({ serviceId: 1, source: 1, datetime: 1 })
 
 export const SlotModel: Model<SlotDocument> =
     mongoose.models.Slot || mongoose.model<SlotDocument>("Slot", SlotSchema)

@@ -2,6 +2,19 @@ import { Types, Document } from "mongoose"
 
 export type ServiceMode = "in-person" | "online" | "in-person-at-home"
 
+export interface WorkScheduleBlock {
+    start: string
+    end: string
+}
+
+/** Plantilla semanal de horarios de trabajo del servicio. days: 0=domingo … 6=sábado. */
+export interface WorkSchedule {
+    days: number[]
+    blocks: WorkScheduleBlock[]
+    turnIntervalMinutes: number
+    graceMinutes: number
+}
+
 /** Forma legacy / API derivada de slots (no se persiste en Service). */
 export interface AvailableSlot {
     _id?: Types.ObjectId
@@ -28,6 +41,8 @@ export interface ServiceAttrs {
     price?: number
     mode: ServiceMode
     signPrice: number
+    workSchedule?: WorkSchedule
+    autoGenerateSlots: boolean
     createdAt: Date
     updatedAt: Date
 }
@@ -61,4 +76,9 @@ export interface EnableSlotsInput {
     hourFinish: string
     turnEach: string
     days: string[]
+}
+
+export interface UpdateWorkScheduleInput {
+    workSchedule: WorkSchedule
+    autoGenerateSlots: boolean
 }

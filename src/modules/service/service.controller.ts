@@ -57,6 +57,32 @@ export class ServiceController {
         )
         res.status(200).send({ data })
     })
+
+    clearAvailableSlotsByDay = asyncHandler(async (req: Request, res: Response) => {
+        const data = await this.serviceService.clearAvailableSlotsByDay(
+            req.params.id,
+            req.body.date
+        )
+        res.status(200).send({ data })
+    })
+
+    clearAvailableSlotsByDatetimes = asyncHandler(async (req: Request, res: Response) => {
+        const data = await this.serviceService.clearAvailableSlotsByDatetimes(
+            req.params.id,
+            req.body.datetimes
+        )
+        res.status(200).send({ data })
+    })
+
+    updateWorkSchedule = asyncHandler(async (req: Request, res: Response) => {
+        const data = await this.serviceService.updateWorkSchedule(req.params.id, req.body)
+        res.status(200).send({ data })
+    })
+
+    syncWorkSchedule = asyncHandler(async (req: Request, res: Response) => {
+        const data = await this.serviceService.syncWorkSchedule(req.params.id)
+        res.status(200).send({ data })
+    })
 }
 
 export const createVerifyServiceMiddleware = (serviceService: ServiceService) => {

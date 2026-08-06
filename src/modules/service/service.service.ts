@@ -12,13 +12,14 @@ import { SlotMapper } from "../slot/slot.mapper"
 import { SlotRepository } from "../slot/slot.repository"
 import { SubscriptionRepository } from "../subscription/subscription.repository"
 import { PendingReservationRepository } from "../pending-reservation/pending-reservation.repository"
-import { generateAppointments } from "./generate-slots"
+import { generateAppointments, generateAppointmentsFromSchedule } from "./generate-slots"
 import { ServiceMapper } from "./service.mapper"
 import { ServiceRepository } from "./service.repository"
 import {
     CreateServiceInput,
     EnableSlotsInput,
     UpdateServiceInput,
+    UpdateWorkScheduleInput,
 } from "./service.types"
 
 export interface AppointmentCleanupPort {
@@ -243,10 +244,118 @@ export class ServiceService {
                 .toDate(),
             capacity: service.capacityPerShift,
             taken: 0,
+            source: "manual" as const,
         }))
 
         await this.slotRepository.upsertMany(slots)
         return arrayAppointmentsInString
+    }
+
+    async updateWorkSchedule(id: string, input: UpdateWorkScheduleInput) {
+        const service = await this.serviceRepository.findLeanById(id)
+        if (!service) throw new NotFoundError("Servicio no encontrado.")
+
+        const updated = await this.serviceRepository.setFields(id, {
+            $set: {
+                workSchedule: input.workSchedule,
+                autoGenerateSlots: input.autoGenerateSlots,
+                updatedAt: new Date(),
+            },
+        })
+        if (!updated) throw new NotFoundError("Servicio no encontrado.")
+
+        if (input.autoGenerateSlots) {
+            await this.ensureAutoSlotsForService(id)
+        } else {
+            const now = moment().tz(BA_TIMEZONE).toDate()
+            const pendings =
+                await this.pendingReservationRepository.findActiveByService(id)
+            const excludeIds = pendings.map((p) => p.slotId)
+            await this.slotRepository.deleteEmptyFutureAutoSlots(id, now, excludeIds)
+        }
+
+        const slots = await this.slotRepository.findAllByService(id)
+        return ServiceMapper.withSlots(updated, slots)
+    }
+
+    async syncWorkSchedule(id: string) {
+        const service = await this.serviceRepository.findLeanById(id)
+        if (!service) throw new NotFoundError("Servicio no encontrado.")
+        if (!service.autoGenerateSlots || !service.workSchedule) {
+            throw new ValidationError(
+                "El servicio no tiene generación automática de turnos activa."
+            )
+        }
+        await this.ensureAutoSlotsForService(id)
+        const [updated, slots] = await Promise.all([
+            this.serviceRepository.findLeanById(id),
+            this.slotRepository.findAllByService(id),
+        ])
+        return ServiceMapper.withSlots(updated!, slots)
+    }
+
+    async ensureAutoSlotsForService(serviceId: string) {
+        const service = await this.serviceRepository.findLeanById(serviceId)
+        if (!service?.autoGenerateSlots || !service.workSchedule) return
+
+        const company = await this.companyRepository.findById(service.companyId)
+        if (!company) return
+
+        const horizonDays = company.slotsVisibilityDays || 7
+        const today = moment().tz(BA_TIMEZONE).startOf("day")
+        const fromDay = today.format("YYYY-MM-DD")
+        const toDayExclusive = today.clone().add(horizonDays, "days").format("YYYY-MM-DD")
+        const windowStart = today.toDate()
+        const windowEnd = today.clone().add(horizonDays, "days").toDate()
+
+        const generated = generateAppointmentsFromSchedule({
+            schedule: service.workSchedule,
+            fromDay,
+            toDayExclusive,
+            capacityPerShift: service.capacityPerShift,
+        })
+
+        const slotInputs = generated.map((appointment) => ({
+            serviceId: service._id,
+            companyId: service.companyId,
+            datetime: moment
+                .tz(appointment.datetime, "YYYY-MM-DD HH:mm", BA_TIMEZONE)
+                .toDate(),
+            capacity: service.capacityPerShift,
+            taken: 0,
+            source: "auto" as const,
+        }))
+
+        await this.slotRepository.syncAutoSlots(slotInputs)
+
+        const pendings =
+            await this.pendingReservationRepository.findActiveByService(serviceId)
+        const excludeIds = pendings.map((p) => p.slotId)
+
+        await this.slotRepository.deleteEmptyAutoSlotsNotMatching({
+            serviceId,
+            keepDatetimes: slotInputs.map((s) => s.datetime),
+            windowStart,
+            windowEnd,
+            excludeIds,
+        })
+    }
+
+    async ensureAutoSlotsForAllCompanies() {
+        const services = await this.serviceRepository.findAutoGenerateActive()
+        let synced = 0
+        for (const service of services) {
+            try {
+                await this.ensureAutoSlotsForService(String(service._id))
+                synced++
+            } catch (error) {
+                console.error(
+                    `❌ Error al sincronizar slots auto del servicio ${service._id}:`,
+                    error
+                )
+            }
+        }
+        return synced
     }
 
     async addEnableAppointment(id: string, date: string) {
@@ -290,6 +399,83 @@ export class ServiceService {
                 datetime: date,
                 capacity: updated?.capacity ?? 0,
                 taken: updated?.taken ?? before.taken,
+            },
+        }
+    }
+
+    /**
+     * Elimina todos los cupos disponibles de un día (timezone BA).
+     * Conserva slots con reservas o holds activos.
+     */
+    async clearAvailableSlotsByDay(id: string, day: string) {
+        const service = await this.serviceRepository.findLeanById(id)
+        if (!service) throw new NotFoundError("Servicio no encontrado.")
+
+        const dayStart = moment.tz(day, "YYYY-MM-DD", BA_TIMEZONE).startOf("day")
+        if (!dayStart.isValid()) {
+            throw new ValidationError("Fecha inválida.")
+        }
+        const dayEnd = dayStart.clone().add(1, "day")
+
+        const pendings =
+            await this.pendingReservationRepository.findActiveByService(id)
+        const excludeIds = pendings.map((p) => p.slotId)
+
+        const result = await this.slotRepository.clearAvailableInRange({
+            serviceId: id,
+            from: dayStart.toDate(),
+            toExclusive: dayEnd.toDate(),
+            excludeIds,
+        })
+
+        const slots = await this.slotRepository.findAllByService(id)
+        return {
+            service: ServiceMapper.withSlots(service, slots),
+            summary: {
+                date: day,
+                deleted: result.deleted,
+                trimmed: result.trimmed,
+                keptWithHolds: result.keptWithHolds,
+            },
+        }
+    }
+
+    /**
+     * Elimina cupos disponibles de horarios concretos (YYYY-MM-DD HH:mm en BA).
+     */
+    async clearAvailableSlotsByDatetimes(id: string, datetimes: string[]) {
+        const service = await this.serviceRepository.findLeanById(id)
+        if (!service) throw new NotFoundError("Servicio no encontrado.")
+
+        const unique = [...new Set(datetimes)]
+        const parsed: Date[] = []
+        for (const dt of unique) {
+            const date = parseBaTz(dt)
+            if (Number.isNaN(date.getTime())) {
+                throw new ValidationError(`Datetime inválido: ${dt}`)
+            }
+            parsed.push(date)
+        }
+
+        const pendings =
+            await this.pendingReservationRepository.findActiveByService(id)
+        const excludeIds = pendings.map((p) => p.slotId)
+
+        const result = await this.slotRepository.clearAvailableAtDatetimes({
+            serviceId: id,
+            datetimes: parsed,
+            excludeIds,
+        })
+
+        const slots = await this.slotRepository.findAllByService(id)
+        return {
+            service: ServiceMapper.withSlots(service, slots),
+            summary: {
+                requested: unique.length,
+                deleted: result.deleted,
+                trimmed: result.trimmed,
+                keptWithHolds: result.keptWithHolds,
+                notFound: result.notFound,
             },
         }
     }
