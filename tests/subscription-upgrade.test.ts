@@ -327,6 +327,51 @@ describe("SubscriptionService upgrade hardening", () => {
         expect(applyBenefitsSpy).not.toHaveBeenCalled()
     })
 
+    it("cancel tras downgrade a free no marca inactive", async () => {
+        subscriptionRepository.findByCompanyId.mockResolvedValue({
+            _id: subId,
+            status: "active",
+            plan: "individual",
+        })
+        preApprovalGet.mockResolvedValue({
+            id: "old-paid-pre",
+            status: "cancelled",
+            external_reference: companyId,
+        })
+
+        const result = await subscriptionService.handlePreapprovalWebhook(
+            "old-paid-pre"
+        )
+
+        expect(result.status).toBe(200)
+        expect(subscriptionRepository.updateStatus).not.toHaveBeenCalled()
+    })
+
+    it("cancel con preapproval vigente en plan pago sí marca inactive", async () => {
+        subscriptionRepository.findByCompanyId.mockResolvedValue({
+            _id: subId,
+            status: "active",
+            plan: "individual_plus",
+            mpPreapprovalId: "paid-pre",
+        })
+        companyRepository.findById.mockResolvedValue({
+            _id: companyId,
+            email: "c@c.com",
+        })
+        preApprovalGet.mockResolvedValue({
+            id: "paid-pre",
+            status: "cancelled",
+            external_reference: companyId,
+        })
+
+        await subscriptionService.handlePreapprovalWebhook("paid-pre")
+
+        expect(subscriptionRepository.updateStatus).toHaveBeenCalledWith(
+            companyId,
+            "inactive"
+        )
+    })
+
     it("cancel del nuevo durante upgrading aborta y restaura previous", async () => {
         subscriptionRepository.findByCompanyId.mockResolvedValue({
             _id: subId,
