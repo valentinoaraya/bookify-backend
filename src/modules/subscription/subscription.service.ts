@@ -1118,9 +1118,24 @@ export class SubscriptionService {
             return { status: 200, payload: { data: "Received" } }
         }
 
+        // Downgrade a free: cancelamos el PreApproval de MP a propósito.
+        // El plan free no depende de MP; el webhook no debe pasar a inactive.
+        if (
+            _subscription?.plan === FREE_PLAN &&
+            (currentStatus === "active" || currentStatus === "downgrading")
+        ) {
+            logger.info(
+                { companyId, cancelledPreapprovalId },
+                "Cancel de preapproval en plan free — ignorado."
+            )
+            return { status: 200, payload: { data: "Received" } }
+        }
+
         if (currentStatus === "cancelling" || currentStatus === "active") {
+            // Sin PreApproval vigente, un cancel viejo no aplica (p.ej. race
+            // post-unset). Antes, `!currentPreapprovalId` caía a inactive.
             if (
-                currentPreapprovalId &&
+                !currentPreapprovalId ||
                 cancelledPreapprovalId !== currentPreapprovalId
             ) {
                 return { status: 200, payload: { data: "Received" } }
