@@ -55,7 +55,10 @@ export interface CompanyAttrs {
     connectedWithMP: boolean
     mp_access_token: string
     mp_refresh_token: string
+    /** Segundos de vida del access token (respuesta OAuth de MP). */
     token_expires_in: number
+    /** Momento absoluto en que vence el access token (no depende de updatedAt). */
+    mp_token_expires_at?: Date | null
     mp_user_id: string
     reminders: CompanyReminder[]
     slotsVisibilityDays: number

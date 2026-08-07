@@ -54,6 +54,8 @@ describe("AppointmentService", () => {
         paymentGateway = {
             refund: vi.fn(),
             getPayment: vi.fn(),
+            refundDetailed: vi.fn(),
+            getPaymentDetailed: vi.fn(),
         }
         slotRepository = {
             tryReserveByServiceDatetime: vi.fn(),
@@ -67,6 +69,23 @@ describe("AppointmentService", () => {
             updateStatus: vi.fn(),
         }
 
+        const mpTokenService = {
+            getValidAccessToken: vi.fn(async (c: { mp_access_token?: string }) =>
+                c.mp_access_token ?? null
+            ),
+            withValidAccessToken: vi.fn(
+                async (
+                    company: { mp_access_token?: string },
+                    execute: (token: string) => Promise<{ unauthorized: boolean; result: unknown }>
+                ) => {
+                    const outcome = await execute(company.mp_access_token || "")
+                    return outcome.result
+                }
+            ),
+            refreshCompanyToken: vi.fn(),
+            clearConnection: vi.fn(),
+        }
+
         appointmentService = new AppointmentService(
             appointmentRepository as unknown as AppointmentRepository,
             serviceRepository as unknown as ServiceRepository,
@@ -75,7 +94,8 @@ describe("AppointmentService", () => {
             pendingSlotService as unknown as PendingSlotService,
             paymentGateway as unknown as MercadoPagoPaymentGateway,
             slotRepository as unknown as SlotRepository,
-            paymentRepository as unknown as PaymentRepository
+            paymentRepository as unknown as PaymentRepository,
+            mpTokenService as never
         )
     })
 

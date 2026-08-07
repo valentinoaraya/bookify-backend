@@ -58,6 +58,19 @@ describe("PaymentService.createPreference", () => {
         paymentGateway = {
             createPreference: vi.fn().mockResolvedValue({ init_point: "https://mp/pay" }),
         }
+        const mpTokenService = {
+            withValidAccessToken: vi.fn(
+                async (
+                    company: { mp_access_token: string },
+                    execute: (token: string) => Promise<{ unauthorized: boolean; result: unknown }>
+                ) => {
+                    const outcome = await execute(company.mp_access_token)
+                    return outcome.result
+                }
+            ),
+            persistTokens: vi.fn(),
+            clearConnection: vi.fn(),
+        }
         markPending = vi.fn().mockResolvedValue(pendingId)
         removePending = vi.fn()
 
@@ -66,7 +79,8 @@ describe("PaymentService.createPreference", () => {
             serviceRepository as unknown as ServiceRepository,
             paymentGateway as unknown as MercadoPagoPaymentGateway,
             {} as unknown as SubscriptionService,
-            { findByCompanyId: vi.fn() } as never
+            { findByCompanyId: vi.fn() } as never,
+            mpTokenService as never
         )
     })
 

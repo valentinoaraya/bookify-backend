@@ -4,12 +4,14 @@ import { AppointmentRepository } from "../modules/appointment/appointment.reposi
 import { CompanyRepository } from "../modules/company/company.repository"
 import { PaymentRepository } from "../modules/payment/payment.repository"
 import { MercadoPagoPaymentGateway } from "../modules/payment/refund.gateway"
+import { MpTokenService } from "../modules/payment/mp-token.service"
 import { calculateRefundAmount, RefundActor } from "../modules/payment/refund-policy"
 
 const paymentRepository = new PaymentRepository()
 const appointmentRepository = new AppointmentRepository()
 const companyRepository = new CompanyRepository()
 const paymentGateway = new MercadoPagoPaymentGateway()
+const mpTokenService = new MpTokenService(companyRepository, paymentGateway)
 
 /**
  * Reintenta los reembolsos que Mercado Pago rechazó al cancelar un turno. La
@@ -25,7 +27,7 @@ const retryPendingRefunds = async (): Promise<void> => {
     for (const payment of pendings) {
         try {
             const company = await companyRepository.findById(payment.companyId)
-            if (!company?.mp_access_token) {
+            if (!company?.mp_access_token && !company?.mp_refresh_token) {
                 logger.error(
                     { paymentId: payment.mpPaymentId },
                     "Sin token de Mercado Pago para reintentar el reembolso"
@@ -36,10 +38,19 @@ const retryPendingRefunds = async (): Promise<void> => {
             const actor = await resolveRefundActor(payment.appointmentId)
             const amount = calculateRefundAmount(payment.amount, actor)
 
-            const response = await paymentGateway.refund(
-                payment.mpPaymentId,
-                company.mp_access_token,
-                amount
+            const response = await mpTokenService.withValidAccessToken(
+                company,
+                async (accessToken) => {
+                    const result = await paymentGateway.refundDetailed(
+                        payment.mpPaymentId,
+                        accessToken,
+                        amount
+                    )
+                    return {
+                        unauthorized: result.unauthorized,
+                        result: result.ok ? result.data : null,
+                    }
+                }
             )
 
             if (!response) {

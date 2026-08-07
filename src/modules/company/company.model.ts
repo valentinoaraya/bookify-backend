@@ -34,6 +34,7 @@ const CompanySchema = new Schema<CompanyDocument>({
     mp_access_token: { type: String, default: "" },
     mp_refresh_token: { type: String, default: "" },
     token_expires_in: { type: Number, default: 0 },
+    mp_token_expires_at: { type: Date, default: null },
     mp_user_id: { type: String, default: "" },
     reminders: [reminderSchema],
     slotsVisibilityDays: { type: Number, required: true, default: 7 },

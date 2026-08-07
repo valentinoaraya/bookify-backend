@@ -2,12 +2,20 @@ import { MercadoPagoSubscriptionGateway } from "../../infrastructure/mercadopago
 import { PreApproval } from "mercadopago"
 import { mercadoPagoAedes } from "../../services/mercadopagoService"
 import { namesAndAmounts, PLAN_RULES, FREE_UPGRADE_MARKER, FREE_PLAN, planAllowsIntegrations } from "../../utils/planRules"
+import {
+    notifyAedesFlow,
+    buildCustomerUpsertedPayload,
+    buildSubscriptionUpsertedPayload,
+    buildSubscriptionCanceledPayload,
+    buildPaymentPayload,
+} from "../../infrastructure/aedesflow"
 import { ForbiddenError, NotFoundError, ValidationError } from "../../shared/errors"
 import { logger } from "../../shared/logger"
 import { CompanyRepository } from "../company/company.repository"
 import { ServiceRepository } from "../service/service.repository"
 import { PlanType } from "../company/company.types"
 import { NotificationService } from "../notification/notification.service"
+import { MpTokenService } from "../payment/mp-token.service"
 import { SubscriptionRepository } from "./subscription.repository"
 import {
     SubscriptionDocument,
@@ -104,19 +112,12 @@ export class SubscriptionService {
         )
     }
 
-    private async disconnectMercadoPago(companyId: string) {
-        await this.companyRepository.updateById(companyId, {
-            $set: {
-                connectedWithMP: false,
-                mp_access_token: "",
-                mp_refresh_token: "",
-                token_expires_in: 0,
-                mp_user_id: "",
-                updatedAt: new Date(),
-            },
-        })
-        await this.serviceRepository.clearSignPricesByCompany(companyId)
-    }
+	private async disconnectMercadoPago(companyId: string) {
+		await this.companyRepository.updateById(companyId, {
+			$set: MpTokenService.buildClearFields(),
+		})
+		await this.serviceRepository.clearSignPricesByCompany(companyId)
+	}
 
     private async applyPlanRestrictions(companyId: string, newPlan: string) {
         const company = await this.companyRepository.findById(companyId)
@@ -313,6 +314,10 @@ export class SubscriptionService {
                     input.companyId
                 )
                 await this.applyPlanRestrictions(input.companyId, FREE_PLAN)
+                await this.pushAedesFlowSubscriptionUpserted(
+                    input.companyId,
+                    FREE_PLAN
+                )
                 return "Plan changed succesfully"
             } catch (error) {
                 await this.subscriptionRepository.clearTransitionFields(
@@ -360,6 +365,10 @@ export class SubscriptionService {
             )
 
             await this.applyPlanRestrictions(input.companyId, input.newPlan)
+            await this.pushAedesFlowSubscriptionUpserted(
+                input.companyId,
+                input.newPlan
+            )
             return "Plan changed succesfully"
         } catch (error) {
             await this.subscriptionRepository.clearTransitionFields(
@@ -405,6 +414,7 @@ export class SubscriptionService {
             // ya dejamos status=inactive, y el webhook de MP llega tarde y
             // no notificaría (solo notifica si status es active/cancelling).
             await this.notifySubscriptionCancelled(company.email)
+            await this.pushAedesFlowSubscriptionCanceled(companyId, current)
 
             return "Suscription cancelled"
         } catch (error) {
@@ -871,6 +881,21 @@ export class SubscriptionService {
                     `<div style="font-family: Arial, sans-serif; color: #262626;"><h2>❌ ¡Lo sentimos!</h2><p>Tu suscripción a <strong>Bookify</strong> ha sido <span style="color: #e74c3c; font-weight: bold;">rechazada</span>.</p><p>Por favor, contacta al soporte para resolver el problema.</p><br/><p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p></div>`
                 )
             }
+            if (subscription) {
+                notifyAedesFlow(
+                    buildPaymentPayload(
+                        "payment.failed",
+                        company,
+                        subscription,
+                        {
+                            external_id: `preapproval_reject_${eventPreapprovalId}`,
+                            amount: namesAndAmounts[subscription.plan]?.price ?? 0,
+                            currency: "ARS",
+                            failure_reason: String(preapproval.status || "rejected"),
+                        }
+                    )
+                )
+            }
             return { status: 200, payload: { data: "Received" } }
         }
 
@@ -951,6 +976,7 @@ export class SubscriptionService {
             }
             await this.applyPlanBenefits(companyId, plan)
             await this.notifySubscriptionApproved(companyEmail, true)
+            await this.pushAedesFlowSubscriptionUpserted(companyId, plan)
             return { status: 200, payload: { data: "Received" } }
         }
 
@@ -987,6 +1013,7 @@ export class SubscriptionService {
 
             await this.applyPlanBenefits(companyId, plan)
             await this.notifySubscriptionApproved(companyEmail, false)
+            await this.pushAedesFlowSubscriptionUpserted(companyId, plan)
             return { status: 200, payload: { data: "Received" } }
         }
 
@@ -1014,6 +1041,7 @@ export class SubscriptionService {
             }
             await this.applyPlanBenefits(companyId, plan)
             await this.notifySubscriptionApproved(companyEmail, false)
+            await this.pushAedesFlowSubscriptionUpserted(companyId, plan)
             return { status: 200, payload: { data: "Received" } }
         }
 
@@ -1104,6 +1132,10 @@ export class SubscriptionService {
             // cancelling, el mail ya lo mandó `cancel()` del panel.
             if (currentStatus === "active") {
                 await this.notifySubscriptionCancelled(companyEmail)
+                await this.pushAedesFlowSubscriptionCanceled(
+                    companyId,
+                    _subscription
+                )
             }
         }
 
@@ -1118,5 +1150,149 @@ export class SubscriptionService {
             `¡Hola!\n Tu suscripción a Bookify ha sido cancelada correctamente.\n`,
             `<div style="font-family: Arial, sans-serif; color: #262626;"><h2>¡Hola!</h2><p>Tu suscripción a <strong>Bookify</strong> ha sido <span style="color: #e74c3c; font-weight: bold;">cancelada</span> correctamente.</p><br/><p style="font-size: 0.9em; color: #888;">Si tienes dudas o necesitas ayuda, contáctanos a aedestechnologies@gmail.com.</p></div>`
         )
+    }
+
+    private async pushAedesFlowSubscriptionUpserted(
+        companyId: string,
+        planOverride?: SubscriptionPlan
+    ) {
+        try {
+            const company = await this.companyRepository.findById(companyId)
+            const subscription =
+                await this.subscriptionRepository.findByCompanyId(companyId)
+            if (!company || !subscription) return
+
+            const plan = planOverride ?? subscription.plan
+            notifyAedesFlow(buildCustomerUpsertedPayload(company))
+            notifyAedesFlow(
+                buildSubscriptionUpsertedPayload(
+                    company,
+                    {
+                        _id: subscription._id,
+                        plan,
+                        status: "active",
+                        startDate: subscription.startDate,
+                        nextPaymentDate: subscription.nextPaymentDate,
+                    },
+                    { status: "active" }
+                )
+            )
+        } catch (err) {
+            logger.warn(
+                { err, companyId },
+                "No se pudo armar payload AedesFlow (subscription.upserted)"
+            )
+        }
+    }
+
+    private async pushAedesFlowSubscriptionCanceled(
+        companyId: string,
+        subscription: SubscriptionDocument | null
+    ) {
+        try {
+            const company = await this.companyRepository.findById(companyId)
+            const sub =
+                subscription ||
+                (await this.subscriptionRepository.findByCompanyId(companyId))
+            if (!company || !sub) return
+            notifyAedesFlow(buildSubscriptionCanceledPayload(company, sub))
+        } catch (err) {
+            logger.warn(
+                { err, companyId },
+                "No se pudo armar payload AedesFlow (subscription.canceled)"
+            )
+        }
+    }
+
+    /**
+     * Webhook subscription_authorized_payment: cobros recurrentes de la suscripción.
+     */
+    async handleAuthorizedPaymentWebhook(authorizedPaymentId: string): Promise<{
+        status: number
+        payload: Record<string, unknown>
+    }> {
+        logger.info(
+            { authorizedPaymentId },
+            "Notificación de pago de suscripción recibida."
+        )
+
+        const invoice =
+            await this.mpSubscriptionGateway.getAuthorizedPayment(
+                authorizedPaymentId
+            )
+        if (!invoice?.preapproval_id) {
+            return { status: 200, payload: { data: "Received" } }
+        }
+
+        const subscription =
+            await this.subscriptionRepository.findByMpPreapprovalId(
+                invoice.preapproval_id
+            )
+        if (!subscription) {
+            logger.warn(
+                { preapprovalId: invoice.preapproval_id },
+                "Authorized payment sin suscripción local"
+            )
+            return { status: 200, payload: { data: "Received" } }
+        }
+
+        const company = await this.companyRepository.findById(
+            subscription.companyId
+        )
+        if (!company) {
+            return { status: 200, payload: { data: "Received" } }
+        }
+
+        const mpPayment = invoice.payment
+        const paymentStatus = (mpPayment?.status || "").toLowerCase()
+        const externalId = String(
+            mpPayment?.id ?? invoice.id ?? authorizedPaymentId
+        )
+        const amount = Number(invoice.transaction_amount ?? 0)
+        const currency = (invoice.currency_id || "ARS").toUpperCase()
+        const occurredAt =
+            invoice.debit_date ||
+            invoice.date_created ||
+            new Date().toISOString()
+
+        let event: "payment.succeeded" | "payment.failed" | "payment.refunded"
+        if (
+            paymentStatus === "refunded" ||
+            paymentStatus === "charged_back"
+        ) {
+            event = "payment.refunded"
+        } else if (
+            paymentStatus === "approved" ||
+            paymentStatus === "accredited"
+        ) {
+            event = "payment.succeeded"
+        } else if (
+            paymentStatus === "rejected" ||
+            paymentStatus === "cancelled" ||
+            paymentStatus === "canceled"
+        ) {
+            event = "payment.failed"
+        } else {
+            logger.info(
+                { paymentStatus, authorizedPaymentId },
+                "Authorized payment en estado intermedio — sin notify AedesFlow"
+            )
+            return { status: 200, payload: { data: "Received" } }
+        }
+
+        notifyAedesFlow(
+            buildPaymentPayload(event, company, subscription, {
+                external_id: externalId,
+                amount,
+                currency,
+                failure_reason:
+                    event === "payment.failed"
+                        ? mpPayment?.status_detail
+                        : undefined,
+                occurred_at: occurredAt,
+            })
+        )
+
+        return { status: 200, payload: { data: "Received" } }
     }
 }

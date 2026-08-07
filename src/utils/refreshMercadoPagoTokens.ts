@@ -1,93 +1,84 @@
 import cron from "node-cron"
-import CompanyModel from "../models/Company"
-import { CLIENT_ID_MP, CLIENT_SECRET_MP } from "../config"
+import { logger } from "../shared/logger"
+import { CompanyRepository } from "../modules/company/company.repository"
+import { MercadoPagoPaymentGateway } from "../modules/payment/refund.gateway"
+import {
+    MpTokenService,
+    MP_TOKEN_RENEW_AHEAD_MS,
+} from "../modules/payment/mp-token.service"
 
+const companyRepository = new CompanyRepository()
+const paymentGateway = new MercadoPagoPaymentGateway()
+const mpTokenService = new MpTokenService(companyRepository, paymentGateway)
+
+/**
+ * Renueva de forma proactiva los access tokens OAuth de empresas vinculadas,
+ * usando `mp_token_expires_at` (no `updatedAt` del perfil).
+ */
 const refreshMercadoPagoTokens = async (): Promise<void> => {
     try {
-        console.log("🔄 Iniciando actualización de tokens de Mercado Pago...")
+        logger.info("Iniciando actualización de tokens de Mercado Pago...")
 
-        const companiesToUpdate = await CompanyModel.find({
+        const companies = await companyRepository.find({
             connectedWithMP: true,
-            mp_refresh_token: { $exists: true, $ne: "" }
+            mp_refresh_token: { $exists: true, $ne: "" },
         })
 
-        const now = Date.now()
-        const ONE_DAY_MS = 24 * 60 * 60 * 1000
-        const RENEW_AHEAD_DAYS = 7
+        const dueSoon = companies.filter((company) =>
+            MpTokenService.needsRefresh(company, Date.now(), MP_TOKEN_RENEW_AHEAD_MS)
+        )
 
-        const dueSoon = companiesToUpdate.filter(company => {
-            const tokenLifetimeMs = (company.token_expires_in || 0) * 1000
-            if (tokenLifetimeMs <= 0) return false
-
-            const issuedAtMs = new Date(company.updatedAt).getTime()
-            const expiresAtMs = issuedAtMs + tokenLifetimeMs
-            const renewThresholdMs = expiresAtMs - (RENEW_AHEAD_DAYS * ONE_DAY_MS)
-            return now >= renewThresholdMs
-        })
-
-        console.log(`📊 Encontradas ${dueSoon.length} empresas con tokens próximos a vencer`)
+        logger.info(
+            { count: dueSoon.length },
+            "Empresas con tokens próximos a vencer o sin fecha de vencimiento"
+        )
 
         let successCount = 0
         let errorCount = 0
 
         for (const company of dueSoon) {
             try {
-                console.log(`🔄 Actualizando token para empresa: ${company.name} (${company._id})`)
-
-                const response = await fetch('https://api.mercadopago.com/oauth/token', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        client_secret: CLIENT_SECRET_MP,
-                        client_id: CLIENT_ID_MP,
-                        grant_type: 'refresh_token',
-                        refresh_token: company.mp_refresh_token
-                    })
-                });
-
-                const data = await response.json()
-
-                if (data.access_token) {
-                    const { access_token, refresh_token, expires_in } = data;
-
-                    await CompanyModel.findByIdAndUpdate(company._id, {
-                        mp_access_token: access_token,
-                        mp_refresh_token: refresh_token || company.mp_refresh_token,
-                        token_expires_in: expires_in || company.token_expires_in,
-                        updatedAt: new Date()
-                    })
-
-                    console.log(`✅ Token actualizado exitosamente para ${company.name}`)
+                const token = await mpTokenService.refreshCompanyToken(company)
+                if (token) {
                     successCount++
                 } else {
-                    console.error(`❌ Error al actualizar token para ${company.name}:`, data)
                     errorCount++
                 }
-
-                await new Promise(resolve => setTimeout(resolve, 1000))
-
-            } catch (error: any) {
-                console.error(`❌ Error procesando empresa ${company.name}:`, error.message)
+                await new Promise((resolve) => setTimeout(resolve, 1000))
+            } catch (error) {
+                logger.error(
+                    { err: error, companyId: company._id, companyName: company.name },
+                    "Error procesando refresh de token MP"
+                )
                 errorCount++
             }
         }
 
-        console.log(`🎯 Actualización completada: ${successCount} exitosos, ${errorCount} errores`)
-
-    } catch (error: any) {
-        console.error("❌ Error en refreshMercadoPagoTokens:", error)
+        logger.info(
+            { successCount, errorCount },
+            "Actualización de tokens de Mercado Pago completada"
+        )
+    } catch (error) {
+        logger.error({ err: error }, "Error en refreshMercadoPagoTokens")
     }
 }
 
 export const startRefreshMercadoPagoTokens = (): void => {
-    cron.schedule("0 2 * * *", async () => {
-        console.log("⏰ Ejecutando actualización automática de tokens de Mercado Pago...")
-        await refreshMercadoPagoTokens()
-    },
-        {
-            timezone: "America/Argentina/Buenos_Aires"
-        }
+    cron.schedule(
+        "0 2 * * *",
+        async () => {
+            logger.info(
+                "Ejecutando actualización automática de tokens de Mercado Pago..."
+            )
+            await refreshMercadoPagoTokens()
+        },
+        { timezone: "America/Argentina/Buenos_Aires" }
     )
 
-    console.log("�� Tarea programada de actualización de tokens configurada para las 2:00 AM diarias")
+    logger.info(
+        "Tarea programada de actualización de tokens configurada para las 2:00 AM diarias"
+    )
 }
+
+/** Exportado para tests / ejecución manual. */
+export { refreshMercadoPagoTokens }

@@ -19,6 +19,7 @@ import { AppointmentService } from "./modules/appointment/appointment.service"
 import { AppointmentController } from "./modules/appointment/appointment.controller"
 import { createAppointmentRoutes } from "./modules/appointment/appointment.routes"
 import { MercadoPagoPaymentGateway } from "./modules/payment/refund.gateway"
+import { MpTokenService } from "./modules/payment/mp-token.service"
 import { PaymentRepository } from "./modules/payment/payment.repository"
 import { PaymentService } from "./modules/payment/payment.service"
 import { PaymentController } from "./modules/payment/payment.controller"
@@ -42,6 +43,7 @@ const subscriptionRepository = new SubscriptionRepository()
 const emailGateway = new EmailGateway()
 const notificationService = new NotificationService(emailGateway)
 const paymentGateway = new MercadoPagoPaymentGateway()
+const mpTokenService = new MpTokenService(companyRepository, paymentGateway)
 const mpSubscriptionGateway = new MercadoPagoSubscriptionGateway()
 
 const authService = new AuthService(companyRepository)
@@ -61,7 +63,8 @@ const appointmentService = new AppointmentService(
     pendingSlotService,
     paymentGateway,
     slotRepository,
-    paymentRepository
+    paymentRepository,
+    mpTokenService
 )
 
 const companyService = new CompanyService(
@@ -117,7 +120,8 @@ const paymentService = new PaymentService(
     serviceRepository,
     paymentGateway,
     subscriptionService,
-    subscriptionRepository
+    subscriptionRepository,
+    mpTokenService
 )
 paymentService.setAppointmentPort(appointmentService)
 
