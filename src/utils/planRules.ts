@@ -1,6 +1,7 @@
 interface PlanRule {
 	max_services: number;
 	max_professionals: number;
+	max_locations: number;
 	email_notifications: boolean;
 	refunds: boolean;
 	integrations: boolean;
@@ -10,6 +11,7 @@ export const PLAN_RULES: Record<string, PlanRule> = {
 	individual: {
 		max_services: 3,
 		max_professionals: 1,
+		max_locations: 1,
 		email_notifications: true,
 		refunds: false,
 		integrations: false,
@@ -17,6 +19,7 @@ export const PLAN_RULES: Record<string, PlanRule> = {
 	individual_plus: {
 		max_services: Infinity,
 		max_professionals: 1,
+		max_locations: 3,
 		email_notifications: true,
 		refunds: true,
 		integrations: true,
@@ -24,6 +27,7 @@ export const PLAN_RULES: Record<string, PlanRule> = {
 	team: {
 		max_services: Infinity,
 		max_professionals: 5,
+		max_locations: 10,
 		email_notifications: true,
 		refunds: true,
 		integrations: true,

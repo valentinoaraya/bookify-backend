@@ -80,6 +80,7 @@ export class SlotRepository extends BaseRepository<SlotDocument> {
                         companyId: new Types.ObjectId(String(slot.companyId)),
                         datetime: slot.datetime,
                         taken: slot.taken ?? 0,
+                        source: slot.source ?? "manual",
                         createdAt: new Date(),
                     },
                     $set: {
@@ -92,6 +93,266 @@ export class SlotRepository extends BaseRepository<SlotDocument> {
         }))
         const result = await this.model.bulkWrite(ops as any, { ordered: false })
         return (result.upsertedCount || 0) + (result.modifiedCount || 0)
+    }
+
+    /**
+     * Inserta slots auto faltantes y actualiza capacity de auto existentes.
+     * Nunca toca slots `manual` (si ya hay uno en ese datetime, se omite).
+     */
+    async syncAutoSlots(slots: SlotInput[]): Promise<{ inserted: number; updated: number }> {
+        if (slots.length === 0) return { inserted: 0, updated: 0 }
+
+        const serviceId = new Types.ObjectId(String(slots[0].serviceId))
+        const datetimes = slots.map((s) => s.datetime)
+        const existing = await this.model
+            .find({ serviceId, datetime: { $in: datetimes } })
+            .lean()
+            .exec()
+
+        const byTime = new Map(
+            existing.map((s) => [new Date(s.datetime).getTime(), s])
+        )
+
+        const toInsert: SlotInput[] = []
+        const toUpdateCapacity: Array<{ datetime: Date; capacity: number }> = []
+
+        for (const slot of slots) {
+            const key = slot.datetime.getTime()
+            const found = byTime.get(key)
+            if (!found) {
+                toInsert.push({ ...slot, source: "auto", taken: 0 })
+                continue
+            }
+            if ((found.source || "manual") === "manual") continue
+            if (found.capacity !== slot.capacity && found.taken <= slot.capacity) {
+                toUpdateCapacity.push({ datetime: slot.datetime, capacity: slot.capacity })
+            }
+        }
+
+        let inserted = 0
+        if (toInsert.length > 0) {
+            const docs = toInsert.map((slot) => ({
+                serviceId: new Types.ObjectId(String(slot.serviceId)),
+                companyId: new Types.ObjectId(String(slot.companyId)),
+                datetime: slot.datetime,
+                capacity: slot.capacity,
+                taken: 0,
+                source: "auto" as const,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+            }))
+            try {
+                const result = await this.model.insertMany(docs, { ordered: false })
+                inserted = result.length
+            } catch (err: any) {
+                // Duplicate key si otro proceso insertó en paralelo: contar insertados parciales
+                inserted = err?.insertedDocs?.length ?? 0
+                if (err?.code !== 11000 && !err?.writeErrors) throw err
+            }
+        }
+
+        let updated = 0
+        if (toUpdateCapacity.length > 0) {
+            const ops = toUpdateCapacity.map(({ datetime, capacity }) => ({
+                updateOne: {
+                    filter: { serviceId, datetime, source: "auto" },
+                    update: { $set: { capacity, updatedAt: new Date() } },
+                },
+            }))
+            const result = await this.model.bulkWrite(ops as any, { ordered: false })
+            updated = result.modifiedCount || 0
+        }
+
+        return { inserted, updated }
+    }
+
+    /**
+     * Borra slots auto vacíos del servicio cuya datetime no esté en `keepDatetimes`
+     * y/o esté fuera de [windowStart, windowEnd). Nunca borra taken > 0 ni excludeIds.
+     */
+    async deleteEmptyAutoSlotsNotMatching(params: {
+        serviceId: string | Types.ObjectId
+        keepDatetimes: Date[]
+        windowStart: Date
+        windowEnd: Date
+        excludeIds?: Array<string | Types.ObjectId>
+    }): Promise<number> {
+        const keepSet = new Set(params.keepDatetimes.map((d) => d.getTime()))
+        const exclude = (params.excludeIds || []).map((id) => new Types.ObjectId(String(id)))
+
+        const candidates = await this.model
+            .find({
+                serviceId: params.serviceId,
+                source: "auto",
+                taken: 0,
+                ...(exclude.length > 0 ? { _id: { $nin: exclude } } : {}),
+            })
+            .select({ _id: 1, datetime: 1 })
+            .lean()
+            .exec()
+
+        const toDelete = candidates
+            .filter((slot) => {
+                const t = new Date(slot.datetime).getTime()
+                const inWindow =
+                    t >= params.windowStart.getTime() && t < params.windowEnd.getTime()
+                if (!inWindow) return true
+                return !keepSet.has(t)
+            })
+            .map((slot) => slot._id)
+
+        if (toDelete.length === 0) return 0
+        const result = await this.model.deleteMany({ _id: { $in: toDelete }, taken: 0 })
+        return result.deletedCount || 0
+    }
+
+    async deleteEmptyFutureAutoSlots(
+        serviceId: string | Types.ObjectId,
+        from: Date,
+        excludeIds: Array<string | Types.ObjectId> = []
+    ): Promise<number> {
+        const filter: Record<string, unknown> = {
+            serviceId,
+            source: "auto",
+            taken: 0,
+            datetime: { $gte: from },
+        }
+        if (excludeIds.length > 0) {
+            filter._id = { $nin: excludeIds.map((id) => new Types.ObjectId(String(id))) }
+        }
+        const result = await this.model.deleteMany(filter)
+        return result.deletedCount || 0
+    }
+
+    /**
+     * Elimina disponibles en un rango: borra slots vacíos y baja capacity a taken
+     * en slots parcialmente ocupados. No toca excludeIds (holds activos).
+     */
+    async clearAvailableInRange(params: {
+        serviceId: string | Types.ObjectId
+        from: Date
+        toExclusive: Date
+        excludeIds?: Array<string | Types.ObjectId>
+    }): Promise<{ deleted: number; trimmed: number; keptWithHolds: number }> {
+        const exclude = (params.excludeIds || []).map(
+            (id) => new Types.ObjectId(String(id))
+        )
+        const excludeSet = new Set(exclude.map((id) => id.toString()))
+
+        const slots = await this.model
+            .find({
+                serviceId: params.serviceId,
+                datetime: { $gte: params.from, $lt: params.toExclusive },
+            })
+            .lean()
+            .exec()
+
+        const toDelete: Types.ObjectId[] = []
+        const toTrim: Array<{ _id: Types.ObjectId; capacity: number }> = []
+        let keptWithHolds = 0
+
+        for (const slot of slots) {
+            const id = slot._id as Types.ObjectId
+            if (excludeSet.has(id.toString())) {
+                keptWithHolds++
+                continue
+            }
+            if (slot.taken === 0) {
+                toDelete.push(id)
+                continue
+            }
+            if (slot.capacity > slot.taken) {
+                toTrim.push({ _id: id, capacity: slot.taken })
+            }
+        }
+
+        let deleted = 0
+        if (toDelete.length > 0) {
+            const result = await this.model.deleteMany({ _id: { $in: toDelete } })
+            deleted = result.deletedCount || 0
+        }
+
+        let trimmed = 0
+        if (toTrim.length > 0) {
+            const ops = toTrim.map(({ _id, capacity }) => ({
+                updateOne: {
+                    filter: { _id },
+                    update: { $set: { capacity, updatedAt: new Date() } },
+                },
+            }))
+            const result = await this.model.bulkWrite(ops as any, { ordered: false })
+            trimmed = result.modifiedCount || 0
+        }
+
+        return { deleted, trimmed, keptWithHolds }
+    }
+
+    /**
+     * Igual que clearAvailableInRange pero solo para datetimes concretos.
+     */
+    async clearAvailableAtDatetimes(params: {
+        serviceId: string | Types.ObjectId
+        datetimes: Date[]
+        excludeIds?: Array<string | Types.ObjectId>
+    }): Promise<{ deleted: number; trimmed: number; keptWithHolds: number; notFound: number }> {
+        if (params.datetimes.length === 0) {
+            return { deleted: 0, trimmed: 0, keptWithHolds: 0, notFound: 0 }
+        }
+
+        const exclude = (params.excludeIds || []).map(
+            (id) => new Types.ObjectId(String(id))
+        )
+        const excludeSet = new Set(exclude.map((id) => id.toString()))
+
+        const slots = await this.model
+            .find({
+                serviceId: params.serviceId,
+                datetime: { $in: params.datetimes },
+            })
+            .lean()
+            .exec()
+
+        const foundTimes = new Set(slots.map((s) => new Date(s.datetime).getTime()))
+        const notFound = params.datetimes.filter((d) => !foundTimes.has(d.getTime())).length
+
+        const toDelete: Types.ObjectId[] = []
+        const toTrim: Array<{ _id: Types.ObjectId; capacity: number }> = []
+        let keptWithHolds = 0
+
+        for (const slot of slots) {
+            const id = slot._id as Types.ObjectId
+            if (excludeSet.has(id.toString())) {
+                keptWithHolds++
+                continue
+            }
+            if (slot.taken === 0) {
+                toDelete.push(id)
+                continue
+            }
+            if (slot.capacity > slot.taken) {
+                toTrim.push({ _id: id, capacity: slot.taken })
+            }
+        }
+
+        let deleted = 0
+        if (toDelete.length > 0) {
+            const result = await this.model.deleteMany({ _id: { $in: toDelete } })
+            deleted = result.deletedCount || 0
+        }
+
+        let trimmed = 0
+        if (toTrim.length > 0) {
+            const ops = toTrim.map(({ _id, capacity }) => ({
+                updateOne: {
+                    filter: { _id },
+                    update: { $set: { capacity, updatedAt: new Date() } },
+                },
+            }))
+            const result = await this.model.bulkWrite(ops as any, { ordered: false })
+            trimmed = result.modifiedCount || 0
+        }
+
+        return { deleted, trimmed, keptWithHolds, notFound }
     }
 
     async tryReserve(
@@ -187,6 +448,7 @@ export class SlotRepository extends BaseRepository<SlotDocument> {
                         companyId,
                         datetime,
                         taken: 0,
+                        source: "manual",
                         createdAt: new Date(),
                     },
                 },

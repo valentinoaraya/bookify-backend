@@ -15,6 +15,27 @@ export interface CompanyReminder {
     services: Types.ObjectId[]
 }
 
+/** Sede / consultorio de la empresa. */
+export interface CompanyLocation {
+    _id: Types.ObjectId
+    name: string
+    province?: string
+    city: string
+    street: string
+    number: string
+    isDefault: boolean
+}
+
+/** Snapshot de sede guardado en el turno (no cambia si se edita la sede después). */
+export interface CompanyLocationSnapshot {
+    locationId?: Types.ObjectId
+    name: string
+    province?: string
+    city: string
+    street: string
+    number: string
+}
+
 export interface CompanyAttrs {
     name: string
     company_id: string
@@ -24,6 +45,8 @@ export interface CompanyAttrs {
     city?: string
     street?: string
     number?: string
+    /** Sedes / consultorios. La dirección legacy se sincroniza con la sede por defecto. */
+    locations: CompanyLocation[]
     phone: string
     payer_email?: string
     subscriptionId?: Types.ObjectId
@@ -92,4 +115,21 @@ export interface UpdateCompanyInput {
     cancellationAnticipationHours?: number
     bookingAnticipationHours?: number
     slotsVisibilityDays?: number
+}
+
+export interface CreateLocationInput {
+    name: string
+    province?: string
+    city: string
+    street: string
+    number: string
+    isDefault?: boolean
+}
+
+export interface UpdateLocationInput {
+    name?: string
+    province?: string
+    city?: string
+    street?: string
+    number?: string
 }

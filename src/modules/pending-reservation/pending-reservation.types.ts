@@ -7,6 +7,7 @@ export interface PendingReservationUserData {
     dni: string
     phone: string
     userLocation?: string
+    locationId?: string
 }
 
 export interface PendingReservationAttrs {

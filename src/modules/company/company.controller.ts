@@ -40,6 +40,48 @@ export class CompanyController {
         res.status(200).send({ data })
     })
 
+    addLocation = asyncHandler(async (req: Request, res: Response) => {
+        if (!req.company) {
+            throw new UnauthorizedError("No se pudo verificar la identidad de la empresa")
+        }
+        const data = await this.companyService.addLocation(req.company.id, req.body)
+        res.status(200).send({ data })
+    })
+
+    updateLocation = asyncHandler(async (req: Request, res: Response) => {
+        if (!req.company) {
+            throw new UnauthorizedError("No se pudo verificar la identidad de la empresa")
+        }
+        const data = await this.companyService.updateLocation(
+            req.company.id,
+            req.params.locationId,
+            req.body
+        )
+        res.status(200).send({ data })
+    })
+
+    deleteLocation = asyncHandler(async (req: Request, res: Response) => {
+        if (!req.company) {
+            throw new UnauthorizedError("No se pudo verificar la identidad de la empresa")
+        }
+        const data = await this.companyService.deleteLocation(
+            req.company.id,
+            req.params.locationId
+        )
+        res.status(200).send({ data })
+    })
+
+    setDefaultLocation = asyncHandler(async (req: Request, res: Response) => {
+        if (!req.company) {
+            throw new UnauthorizedError("No se pudo verificar la identidad de la empresa")
+        }
+        const data = await this.companyService.setDefaultLocation(
+            req.company.id,
+            req.params.locationId
+        )
+        res.status(200).send({ data })
+    })
+
     getCompanyToUser = asyncHandler(async (req: Request, res: Response) => {
         const company = await this.companyService.getPublicBySlug(req.params.company_id)
         res.status(200).send({ data: company })

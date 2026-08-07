@@ -3,6 +3,7 @@ import { startServer } from "./server"
 import { connectDatabase } from "./shared/database/connection"
 import { startCleanupAppointments } from "./utils/cleanupAppointments"
 import { startCleanupPendingSubscriptions } from "./utils/cleanupPendingSubscriptions"
+import { startEnsureAutoSlots } from "./utils/ensureAutoSlots"
 import { startRefreshMercadoPagoTokens } from "./utils/refreshMercadoPagoTokens"
 import { startRetryPendingRefunds } from "./utils/retryPendingRefunds"
 import { logger } from "./shared/logger"
@@ -12,6 +13,7 @@ const bootstrap = async () => {
         await connectDatabase()
 
         startCleanupAppointments()
+        startEnsureAutoSlots()
         startCleanupPendingSubscriptions()
         startRefreshMercadoPagoTokens()
         startRetryPendingRefunds()

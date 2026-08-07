@@ -5,6 +5,7 @@ export const confirmAppointmentSchema = z.object({
         date: z.string().min(1, "Fecha requerida"),
         serviceId: z.string().min(1, "Servicio requerido"),
         companyId: z.string().min(1, "Empresa requerida"),
+        locationId: z.string().min(1).optional(),
     }),
     dataUser: z
         .object({

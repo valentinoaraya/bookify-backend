@@ -5,6 +5,18 @@ const serviceInfoSchema = new Schema({
     title: { type: String, required: true },
 })
 
+const locationSnapshotSchema = new Schema(
+    {
+        locationId: { type: mongoose.Schema.Types.ObjectId },
+        name: { type: String, required: true },
+        province: { type: String },
+        city: { type: String, required: true },
+        street: { type: String, required: true },
+        number: { type: String, required: true },
+    },
+    { _id: false }
+)
+
 const AppointmentSchema = new Schema<AppointmentDocument>({
     companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Company", required: true },
     serviceId: { type: mongoose.Schema.Types.ObjectId, ref: "Service", required: true },
@@ -34,6 +46,8 @@ const AppointmentSchema = new Schema<AppointmentDocument>({
         enum: ["in-person", "online", "in-person-at-home"],
         default: "online",
     },
+    /** Snapshot de la sede al momento de confirmar (presencial en local). */
+    location: { type: locationSnapshotSchema },
     userLocation: { type: String },
     paymentId: { type: String },
     paymentRef: { type: mongoose.Schema.Types.ObjectId, ref: "Payment" },
