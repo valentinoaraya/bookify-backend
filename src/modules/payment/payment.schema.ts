@@ -3,6 +3,7 @@ import { z } from "zod"
 export const createPreferenceSchema = z.object({
     serviceId: z.string().min(1),
     date: z.string().min(1),
+    locationId: z.string().min(1).optional(),
 })
 
 const changeablePlanEnum = z.enum(["individual", "individual_plus"], {

@@ -48,8 +48,9 @@ export class PaymentService {
 		empresaId: string,
 		user: UserData,
 		input: {
-			serviceId: string;
-			date: string;
+			serviceId: string
+			date: string
+			locationId?: string
 		},
 		markPending: (
 			serviceId: string,
@@ -88,6 +89,14 @@ export class PaymentService {
 		assertBookable(service, dateObj);
 		assertBookingAnticipation(empresa, dateObj);
 
+		if (
+			service.mode === "in-person" &&
+			(service.locationIds || []).length > 1 &&
+			!input.locationId
+		) {
+			throw new ValidationError("Seleccioná una sede para el turno.");
+		}
+
 		const userId = `${name}_${lastName}_${email}`;
 		const pendingId = await markPending(input.serviceId, dateObj, userId, {
 			name,
@@ -96,6 +105,7 @@ export class PaymentService {
 			dni: String(dni),
 			phone: String(phone),
 			userLocation: user.userLocation,
+			locationId: input.locationId,
 		});
 
 		if (!pendingId) {

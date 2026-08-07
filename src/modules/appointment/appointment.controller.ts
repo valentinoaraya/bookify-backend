@@ -19,9 +19,9 @@ export class AppointmentController {
     confirm = asyncHandler(async (req: Request, res: Response) => {
         if (!req.user) throw new UnauthorizedError("Usuario no encontrado.")
 
-        const { date, serviceId, companyId } = req.body.dataAppointment
+        const { date, serviceId, companyId, locationId } = req.body.dataAppointment
         const data = await this.appointmentService.confirmAppointment(
-            { date, serviceId, companyId },
+            { date, serviceId, companyId, locationId },
             req.user as AppointmentUserData
         )
         res.status(200).send({ data })

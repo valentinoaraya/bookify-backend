@@ -20,6 +20,17 @@ const mapSubscription = (companyDB: any) => {
     return null
 }
 
+const mapLocations = (companyDB: any) =>
+    (companyDB.locations || []).map((loc: any) => ({
+        _id: loc._id,
+        name: loc.name,
+        province: loc.province,
+        city: loc.city,
+        street: loc.street,
+        number: loc.number,
+        isDefault: Boolean(loc.isDefault),
+    }))
+
 export class CompanyMapper {
     /** Respuesta de GET /companies/get-company */
     static toPanelResponse(
@@ -53,6 +64,7 @@ export class CompanyMapper {
             city: companyDB.city,
             street: companyDB.street,
             number: companyDB.number,
+            locations: mapLocations(companyDB),
             scheduledAppointments,
             reminders: sortReminders(companyDB.reminders),
             services,
@@ -62,6 +74,26 @@ export class CompanyMapper {
             bookingAnticipationHours: companyDB.bookingAnticipationHours,
             slotsVisibilityDays: companyDB.slotsVisibilityDays,
             subscription: mapSubscription(companyDB),
+        }
+    }
+
+    /** Respuesta pública (booking) sin datos sensibles. */
+    static toPublicResponse(companyDB: any, services: any[]) {
+        return {
+            _id: companyDB._id,
+            type: "company",
+            name: companyDB.name,
+            phone: companyDB.phone,
+            email: companyDB.email,
+            province: companyDB.province,
+            city: companyDB.city,
+            street: companyDB.street,
+            number: companyDB.number,
+            locations: mapLocations(companyDB),
+            services,
+            cancellationAnticipationHours: companyDB.cancellationAnticipationHours,
+            bookingAnticipationHours: companyDB.bookingAnticipationHours,
+            slotsVisibilityDays: companyDB.slotsVisibilityDays,
         }
     }
 
@@ -76,6 +108,7 @@ export class CompanyMapper {
             city: updatedCompany.city,
             street: updatedCompany.street,
             number: updatedCompany.number,
+            locations: mapLocations(updatedCompany),
             reminders: sortReminders(updatedCompany.reminders),
             slotsVisibilityDays: updatedCompany.slotsVisibilityDays,
             cancellationAnticipationHours: updatedCompany.cancellationAnticipationHours,

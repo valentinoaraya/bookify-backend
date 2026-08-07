@@ -40,6 +40,8 @@ export interface ServiceAttrs {
     duration: number
     price?: number
     mode: ServiceMode
+    /** Sedes (Company.locations._id) donde se ofrece el servicio presencial. */
+    locationIds: Types.ObjectId[]
     signPrice: number
     workSchedule?: WorkSchedule
     autoGenerateSlots: boolean
@@ -59,6 +61,7 @@ export interface CreateServiceInput {
     duration: number
     signPrice: number
     mode: ServiceMode
+    locationIds?: string[]
 }
 
 export interface UpdateServiceInput {
@@ -69,6 +72,7 @@ export interface UpdateServiceInput {
     duration?: number
     signPrice?: number
     mode?: ServiceMode
+    locationIds?: string[]
 }
 
 export interface EnableSlotsInput {

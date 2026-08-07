@@ -71,7 +71,8 @@ const companyService = new CompanyService(
     subscriptionRepository,
     appointmentRepository,
     slotRepository,
-    pendingReservationRepository
+    pendingReservationRepository,
+    serviceRepository
 )
 const companyController = new CompanyController(companyService, authService)
 const companyRoutes = createCompanyRoutes(companyController, authMiddlewares)

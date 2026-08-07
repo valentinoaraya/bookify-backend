@@ -2,9 +2,11 @@ import { Router } from "express"
 import { validate } from "../../shared/http/validate"
 import { CompanyController } from "./company.controller"
 import {
+    createLocationSchema,
     loginCompanySchema,
     registerCompanySchema,
     updateCompanySchema,
+    updateLocationSchema,
 } from "./company.schema"
 import { AuthMiddlewares } from "../auth/auth.middleware"
 import { authLimiter } from "../../middlewares/rateLimiters"
@@ -21,6 +23,28 @@ export const createCompanyRoutes = (
         authenticateTokenCompany,
         validate(updateCompanySchema),
         companyController.updateCompany
+    )
+    router.post(
+        "/locations",
+        authenticateTokenCompany,
+        validate(createLocationSchema),
+        companyController.addLocation
+    )
+    router.put(
+        "/locations/:locationId",
+        authenticateTokenCompany,
+        validate(updateLocationSchema),
+        companyController.updateLocation
+    )
+    router.delete(
+        "/locations/:locationId",
+        authenticateTokenCompany,
+        companyController.deleteLocation
+    )
+    router.post(
+        "/locations/:locationId/set-default",
+        authenticateTokenCompany,
+        companyController.setDefaultLocation
     )
     router.post(
         "/login",

@@ -34,6 +34,8 @@ const ServiceSchema = new Schema<ServiceDocument>({
         enum: ["in-person", "online", "in-person-at-home"],
         default: "online",
     },
+    /** Sedes donde se ofrece el servicio presencial (refs a Company.locations._id). */
+    locationIds: [{ type: Schema.Types.ObjectId }],
     signPrice: { type: Number, default: 0 },
     workSchedule: { type: WorkScheduleSchema, required: false },
     autoGenerateSlots: { type: Boolean, required: true, default: false },

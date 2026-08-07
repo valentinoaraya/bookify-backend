@@ -72,6 +72,13 @@ export class ServiceService {
                 : 0
 
         const capacityPerShift = input.capacityPerShift <= 0 ? 1 : input.capacityPerShift
+        const mode = input.mode || "online"
+        const locationIds = this.resolveLocationIdsForMode(
+            mode,
+            input.locationIds,
+            companyDb.locations || []
+        )
+
         const savedService = await this.serviceRepository.create({
             companyId: companyId as Types.ObjectId,
             title: input.title.trim(),
@@ -80,7 +87,8 @@ export class ServiceService {
             capacityPerShift,
             duration: input.duration,
             signPrice,
-            mode: input.mode || "online",
+            mode,
+            locationIds,
             active: true,
         })
 
@@ -156,6 +164,21 @@ export class ServiceService {
                 body.mode === "in-person-at-home")
         ) {
             fieldsToUpdate.mode = body.mode
+        }
+
+        const nextMode =
+            (fieldsToUpdate.mode as string | undefined) ?? serviceBeforeUpdate.mode
+        if (body.locationIds !== undefined || body.mode !== undefined) {
+            const company = await this.companyRepository.findById(
+                serviceBeforeUpdate.companyId
+            )
+            fieldsToUpdate.locationIds = this.resolveLocationIdsForMode(
+                nextMode,
+                body.locationIds !== undefined
+                    ? body.locationIds
+                    : (serviceBeforeUpdate.locationIds || []).map(String),
+                company?.locations || []
+            )
         }
 
         if (
@@ -491,5 +514,38 @@ export class ServiceService {
         if (!arrayServices.includes(serviceId)) {
             throw new NotFoundError("La empresa no contiene este servicio.")
         }
+    }
+
+    private resolveLocationIdsForMode(
+        mode: string,
+        requestedIds: string[] | undefined,
+        companyLocations: Array<{ _id: Types.ObjectId }>
+    ): Types.ObjectId[] {
+        if (mode !== "in-person") {
+            return []
+        }
+
+        const validIds = new Set(companyLocations.map((l) => String(l._id)))
+        const filtered = (requestedIds || [])
+            .map(String)
+            .filter((id) => validIds.has(id))
+
+        if (filtered.length > 0) {
+            return filtered.map((id) => new Types.ObjectId(id))
+        }
+
+        // Sin selección explícita: asignar la sede por defecto (o la primera).
+        const defaultLoc =
+            (companyLocations as Array<{ _id: Types.ObjectId; isDefault?: boolean }>).find(
+                (l) => l.isDefault
+            ) ?? companyLocations[0]
+
+        if (!defaultLoc) {
+            throw new ValidationError(
+                "Para un servicio presencial necesitás al menos una sede. Configurala en Ajustes → Sedes."
+            )
+        }
+
+        return [defaultLoc._id]
     }
 }

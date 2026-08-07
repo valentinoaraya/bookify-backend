@@ -14,6 +14,7 @@ const pendingUserDataSchema = new Schema(
         dni: { type: String, required: true },
         phone: { type: String, required: true },
         userLocation: { type: String },
+        locationId: { type: String },
     },
     { _id: false }
 )

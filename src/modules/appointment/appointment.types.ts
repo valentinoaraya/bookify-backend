@@ -1,4 +1,5 @@
 import { Types, Document } from "mongoose"
+import { CompanyLocationSnapshot } from "../company/company.types"
 
 export type AppointmentStatus =
     | "scheduled"
@@ -32,6 +33,7 @@ export interface AppointmentAttrs {
     date: Date
     reminderJobs: string[]
     mode: AppointmentMode
+    location?: CompanyLocationSnapshot
     userLocation?: string
     paymentId?: string | null
     paymentRef?: Types.ObjectId | null
@@ -58,6 +60,8 @@ export interface ConfirmAppointmentInput {
     date: string
     serviceId: string
     companyId: string
+    /** Sede elegida para servicios presenciales con más de una sede. */
+    locationId?: string
 }
 
 export interface PaymentWebhookBody {

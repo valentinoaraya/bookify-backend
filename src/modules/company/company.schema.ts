@@ -61,6 +61,40 @@ export const updateCompanySchema = z
     })
     .passthrough()
 
+export const createLocationSchema = z.object({
+    name: z.string().min(1, "Nombre de la sede requerido"),
+    province: z.string().optional(),
+    city: z.string().min(1, "Ciudad requerida"),
+    street: z.string().min(1, "Calle requerida"),
+    number: z.union([z.string(), z.number()]).transform(String).pipe(
+        z.string().min(1, "Número de calle requerido")
+    ),
+    isDefault: z.boolean().optional(),
+})
+
+export const updateLocationSchema = z
+    .object({
+        name: z.string().min(1).optional(),
+        province: z.string().optional(),
+        city: z.string().min(1).optional(),
+        street: z.string().min(1).optional(),
+        number: z
+            .union([z.string(), z.number()])
+            .transform(String)
+            .optional(),
+    })
+    .refine(
+        (data) =>
+            data.name !== undefined ||
+            data.province !== undefined ||
+            data.city !== undefined ||
+            data.street !== undefined ||
+            data.number !== undefined,
+        { message: "No hay campos para actualizar" }
+    )
+
 export type RegisterCompanyDto = z.infer<typeof registerCompanySchema>
 export type LoginCompanyDto = z.infer<typeof loginCompanySchema>
 export type UpdateCompanyDto = z.infer<typeof updateCompanySchema>
+export type CreateLocationDto = z.infer<typeof createLocationSchema>
+export type UpdateLocationDto = z.infer<typeof updateLocationSchema>

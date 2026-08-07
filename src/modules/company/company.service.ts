@@ -1,6 +1,7 @@
 import { Types } from "mongoose"
 import { Email } from "../../types"
 import {
+    ForbiddenError,
     NotFoundError,
     ValidationError,
 } from "../../shared/errors"
@@ -9,16 +10,24 @@ import { AuthService } from "../auth/auth.service"
 import { AppointmentRepository } from "../appointment/appointment.repository"
 import { PendingReservationRepository } from "../pending-reservation/pending-reservation.repository"
 import { ServiceMapper } from "../service/service.mapper"
+import { ServiceRepository } from "../service/service.repository"
 import { SlotRepository } from "../slot/slot.repository"
 import { SubscriptionRepository } from "../subscription/subscription.repository"
 import { formatDateTime } from "../../shared/utils/datetime"
+import { PLAN_RULES, isPaidPlan } from "../../utils/planRules"
 import { CompanyRepository } from "./company.repository"
 import { CompanyMapper } from "./company.mapper"
 import {
+    CompanyLocation,
+    CreateLocationInput,
     RegisterCompanyInput,
     UpdateCompanyInput,
+    UpdateLocationInput,
 } from "./company.types"
-import { isPaidPlan } from "../../utils/planRules"
+import {
+    buildLocationsFromLegacy,
+    syncLegacyAddressFromDefault,
+} from "./location.utils"
 
 export class CompanyService {
     constructor(
@@ -28,7 +37,8 @@ export class CompanyService {
         private readonly subscriptionRepository: SubscriptionRepository,
         private readonly appointmentRepository: AppointmentRepository,
         private readonly slotRepository: SlotRepository,
-        private readonly pendingReservationRepository: PendingReservationRepository
+        private readonly pendingReservationRepository: PendingReservationRepository,
+        private readonly serviceRepository?: ServiceRepository
     ) {}
 
     async register(input: RegisterCompanyInput) {
@@ -174,10 +184,21 @@ export class CompanyService {
         const maxAttempts = 5
         let lastError: unknown
 
+        const primaryLocation: CompanyLocation = {
+            _id: new Types.ObjectId(),
+            name: "Sede principal",
+            province: data.province,
+            city: data.city,
+            street: data.street,
+            number: data.number,
+            isDefault: true,
+        }
+
         for (let attempt = 0; attempt < maxAttempts; attempt++) {
             try {
                 return await this.companyRepository.create({
                     ...data,
+                    locations: [primaryLocation],
                     company_id: this.generateCompanyId(),
                 })
             } catch (error) {
@@ -206,7 +227,36 @@ export class CompanyService {
               )
     }
 
+    /** Migra dirección legacy → locations[] si hace falta y sincroniza campos flat. */
+    async ensureLocations(companyId: Types.ObjectId | string): Promise<CompanyLocation[]> {
+        const company = await this.companyRepository.findById(companyId)
+        if (!company) throw new NotFoundError("No se encontró la empresa")
+
+        const fromLegacy = buildLocationsFromLegacy(company)
+        if (fromLegacy) {
+            const legacySync = syncLegacyAddressFromDefault(fromLegacy)
+            await this.companyRepository.updateById(companyId, {
+                $set: {
+                    locations: fromLegacy,
+                    ...(legacySync ?? {}),
+                    updatedAt: new Date(),
+                },
+            })
+            return fromLegacy
+        }
+
+        return company.locations || []
+    }
+
+    private async getPlanMaxLocations(companyId: Types.ObjectId | string): Promise<number> {
+        const subscription = await this.subscriptionRepository.findByCompanyId(companyId)
+        const plan = subscription?.plan || "individual"
+        return PLAN_RULES[plan]?.max_locations ?? 1
+    }
+
     async getPanel(companyId: Types.ObjectId | string) {
+        await this.ensureLocations(companyId)
+
         const companyDB = await this.companyRepository.findPanelById(companyId)
         if (!companyDB) {
             throw new NotFoundError("No se encontró la empresa")
@@ -296,6 +346,42 @@ export class CompanyService {
             }
         }
 
+        const touchesAddress =
+            data.city !== undefined ||
+            data.street !== undefined ||
+            data.number !== undefined ||
+            data.province !== undefined
+
+        if (touchesAddress) {
+            await this.ensureLocations(companyId)
+            const company = await this.companyRepository.findById(companyId)
+            if (company?.locations?.length) {
+                const locations = company.locations.map((loc) => {
+                    if (!loc.isDefault) return loc
+                    return {
+                        ...loc,
+                        province:
+                            data.province !== undefined
+                                ? String(data.province).trim()
+                                : loc.province,
+                        city:
+                            data.city !== undefined
+                                ? String(data.city).trim()
+                                : loc.city,
+                        street:
+                            data.street !== undefined
+                                ? String(data.street).trim()
+                                : loc.street,
+                        number:
+                            data.number !== undefined
+                                ? String(data.number).trim()
+                                : loc.number,
+                    }
+                })
+                cleanedData.locations = locations
+            }
+        }
+
         const updatedCompany = await this.companyRepository.updateCompanyFields(companyId, {
             $set: cleanedData,
         })
@@ -307,13 +393,166 @@ export class CompanyService {
         return CompanyMapper.toUpdateResponse(updatedCompany)
     }
 
+    async addLocation(companyId: Types.ObjectId | string, input: CreateLocationInput) {
+        await this.ensureLocations(companyId)
+        const company = await this.companyRepository.findById(companyId)
+        if (!company) throw new NotFoundError("No se encontró la empresa")
+
+        const maxLocations = await this.getPlanMaxLocations(companyId)
+        const current = company.locations || []
+        if (current.length >= maxLocations) {
+            throw new ForbiddenError(
+                `Has alcanzado el límite de sedes para tu plan (${maxLocations}). Actualizá tu plan para agregar más.`
+            )
+        }
+
+        const makeDefault = input.isDefault === true || current.length === 0
+        const locations: CompanyLocation[] = makeDefault
+            ? current.map((l) => ({ ...l, isDefault: false }))
+            : [...current]
+
+        const newLocation: CompanyLocation = {
+            _id: new Types.ObjectId(),
+            name: input.name.trim(),
+            province: input.province?.trim() || undefined,
+            city: input.city.trim(),
+            street: input.street.trim(),
+            number: String(input.number).trim(),
+            isDefault: makeDefault,
+        }
+        locations.push(newLocation)
+
+        const legacy = syncLegacyAddressFromDefault(locations)
+        const updated = await this.companyRepository.updateCompanyFields(companyId, {
+            $set: {
+                locations,
+                ...(legacy ?? {}),
+                updatedAt: new Date(),
+            },
+        })
+        if (!updated) throw new NotFoundError("No se encontró la empresa")
+        return CompanyMapper.toPanelResponse(updated)
+    }
+
+    async updateLocation(
+        companyId: Types.ObjectId | string,
+        locationId: string,
+        input: UpdateLocationInput
+    ) {
+        await this.ensureLocations(companyId)
+        const company = await this.companyRepository.findById(companyId)
+        if (!company) throw new NotFoundError("No se encontró la empresa")
+
+        const locations = [...(company.locations || [])]
+        const index = locations.findIndex((l) => String(l._id) === String(locationId))
+        if (index < 0) throw new NotFoundError("Sede no encontrada")
+
+        const current = locations[index]
+        locations[index] = {
+            ...current,
+            name: input.name !== undefined ? input.name.trim() : current.name,
+            province:
+                input.province !== undefined
+                    ? input.province.trim() || undefined
+                    : current.province,
+            city: input.city !== undefined ? input.city.trim() : current.city,
+            street: input.street !== undefined ? input.street.trim() : current.street,
+            number:
+                input.number !== undefined
+                    ? String(input.number).trim()
+                    : current.number,
+        }
+
+        const legacy = syncLegacyAddressFromDefault(locations)
+        const updated = await this.companyRepository.updateCompanyFields(companyId, {
+            $set: {
+                locations,
+                ...(legacy ?? {}),
+                updatedAt: new Date(),
+            },
+        })
+        if (!updated) throw new NotFoundError("No se encontró la empresa")
+        return CompanyMapper.toPanelResponse(updated)
+    }
+
+    async deleteLocation(companyId: Types.ObjectId | string, locationId: string) {
+        await this.ensureLocations(companyId)
+        const company = await this.companyRepository.findById(companyId)
+        if (!company) throw new NotFoundError("No se encontró la empresa")
+
+        const locations = [...(company.locations || [])]
+        if (locations.length <= 1) {
+            throw new ValidationError("Debés conservar al menos una sede.")
+        }
+
+        const index = locations.findIndex((l) => String(l._id) === String(locationId))
+        if (index < 0) throw new NotFoundError("Sede no encontrada")
+
+        const removed = locations[index]
+        locations.splice(index, 1)
+
+        if (removed.isDefault && locations.length > 0) {
+            locations[0] = { ...locations[0], isDefault: true }
+        }
+
+        if (this.serviceRepository) {
+            await this.serviceRepository.pullLocationIdFromCompanyServices(
+                companyId,
+                locationId
+            )
+        }
+
+        const legacy = syncLegacyAddressFromDefault(locations)
+        const updated = await this.companyRepository.updateCompanyFields(companyId, {
+            $set: {
+                locations,
+                ...(legacy ?? {}),
+                updatedAt: new Date(),
+            },
+        })
+        if (!updated) throw new NotFoundError("No se encontró la empresa")
+        return CompanyMapper.toPanelResponse(updated)
+    }
+
+    async setDefaultLocation(companyId: Types.ObjectId | string, locationId: string) {
+        await this.ensureLocations(companyId)
+        const company = await this.companyRepository.findById(companyId)
+        if (!company) throw new NotFoundError("No se encontró la empresa")
+
+        const locations = (company.locations || []).map((l) => ({
+            ...l,
+            isDefault: String(l._id) === String(locationId),
+        }))
+
+        if (!locations.some((l) => l.isDefault)) {
+            throw new NotFoundError("Sede no encontrada")
+        }
+
+        const legacy = syncLegacyAddressFromDefault(locations)
+        const updated = await this.companyRepository.updateCompanyFields(companyId, {
+            $set: {
+                locations,
+                ...(legacy ?? {}),
+                updatedAt: new Date(),
+            },
+        })
+        if (!updated) throw new NotFoundError("No se encontró la empresa")
+        return CompanyMapper.toPanelResponse(updated)
+    }
+
     async getPublicBySlug(companyIdSlug: string) {
         const company = await this.companyRepository.findByCompanyId(companyIdSlug)
         if (!company) {
             throw new NotFoundError("Empresa no encontrada.")
         }
 
-        const servicesRaw = (company.services || []) as any[]
+        await this.ensureLocations(company._id)
+        const refreshed = await this.companyRepository.findByCompanyId(companyIdSlug)
+        if (!refreshed) {
+            throw new NotFoundError("Empresa no encontrada.")
+        }
+
+        const servicesRaw = (refreshed.services || []) as any[]
         const serviceIds = servicesRaw.map((s) => s._id)
         const slots = await this.slotRepository.findAllByServiceIds(serviceIds)
 
@@ -329,9 +568,6 @@ export class CompanyService {
             ServiceMapper.withSlots(service, slotsByService.get(String(service._id)) || [])
         )
 
-        return {
-            ...company,
-            services,
-        }
+        return CompanyMapper.toPublicResponse(refreshed, services)
     }
 }

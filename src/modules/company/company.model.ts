@@ -6,6 +6,15 @@ const reminderSchema = new Schema({
     services: [{ type: mongoose.Schema.Types.ObjectId, ref: "Service" }],
 })
 
+const locationSchema = new Schema({
+    name: { type: String, required: true },
+    province: { type: String },
+    city: { type: String, required: true },
+    street: { type: String, required: true },
+    number: { type: String, required: true },
+    isDefault: { type: Boolean, default: false },
+})
+
 const CompanySchema = new Schema<CompanyDocument>({
     name: { type: String, required: true },
     company_id: { type: String, required: true, unique: true },
@@ -15,6 +24,7 @@ const CompanySchema = new Schema<CompanyDocument>({
     city: { type: String },
     street: { type: String },
     number: { type: String },
+    locations: { type: [locationSchema], default: [] },
     phone: { type: String, required: true },
     payer_email: { type: String, default: "" },
     subscriptionId: { type: mongoose.Schema.Types.ObjectId, ref: "Subscription" },

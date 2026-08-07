@@ -84,6 +84,14 @@ export class AppointmentMapper {
                 phone: company.phone,
                 email: company.email,
             },
+            location: appointment.location
+                ? {
+                      name: appointment.location.name,
+                      city: appointment.location.city,
+                      street: appointment.location.street,
+                      number: appointment.location.number,
+                  }
+                : undefined,
         }
     }
 
@@ -112,6 +120,7 @@ export class AppointmentMapper {
             dni: appointment.dni,
             mode: appointment.mode,
             userLocation: appointment.userLocation,
+            location: appointment.location,
             duration: appointment.duration,
             serviceId: {
                 _id: appointment.serviceId?._id,

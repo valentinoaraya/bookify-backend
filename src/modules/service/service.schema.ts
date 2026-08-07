@@ -67,6 +67,8 @@ const workScheduleSchema = z
         }
     })
 
+const locationIdsSchema = z.array(z.string().min(1)).optional()
+
 export const createServiceSchema = z.object({
     title: z.string().min(1, "Titulo incorrecto o incompleto."),
     description: z.string().min(1, "Descripción incorrecto o incompleto."),
@@ -75,6 +77,7 @@ export const createServiceSchema = z.object({
     duration: z.number({ error: "Duración incorrecto o incompleto." }),
     signPrice: z.number({ error: "Precio de seña incorrecto o incompleto." }),
     mode: modeEnum.optional().default("online"),
+    locationIds: locationIdsSchema,
 })
 
 export const updateServiceSchema = z
@@ -86,6 +89,7 @@ export const updateServiceSchema = z
         duration: z.number().optional(),
         signPrice: z.number().optional(),
         mode: modeEnum.optional(),
+        locationIds: locationIdsSchema,
     })
     .passthrough()
 
