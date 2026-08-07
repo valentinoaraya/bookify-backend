@@ -106,7 +106,7 @@ describe("Seguridad del flujo de turnos", () => {
             notifyServiceUpdated: vi.fn(),
             getById: vi.fn().mockResolvedValue(null),
         }
-        paymentGateway = { refund: vi.fn(), getPayment: vi.fn() }
+        paymentGateway = { refund: vi.fn(), getPayment: vi.fn(), refundDetailed: vi.fn(), getPaymentDetailed: vi.fn() }
         slotRepository = {
             tryReserveByServiceDatetime: vi.fn(),
             releaseOne: vi.fn().mockResolvedValue(true),
@@ -120,6 +120,23 @@ describe("Seguridad del flujo de turnos", () => {
             markRefunded: vi.fn(),
         }
 
+        const mpTokenService = {
+            getValidAccessToken: vi.fn(async (c: { mp_access_token?: string }) =>
+                c.mp_access_token ?? null
+            ),
+            withValidAccessToken: vi.fn(
+                async (
+                    company: { mp_access_token?: string },
+                    execute: (token: string) => Promise<{ unauthorized: boolean; result: unknown }>
+                ) => {
+                    const outcome = await execute(company.mp_access_token || "")
+                    return outcome.result
+                }
+            ),
+            refreshCompanyToken: vi.fn(),
+            clearConnection: vi.fn(),
+        }
+
         appointmentService = new AppointmentService(
             appointmentRepository as unknown as AppointmentRepository,
             serviceRepository as unknown as ServiceRepository,
@@ -128,7 +145,8 @@ describe("Seguridad del flujo de turnos", () => {
             pendingSlotService as unknown as PendingReservationService,
             paymentGateway as unknown as MercadoPagoPaymentGateway,
             slotRepository as unknown as SlotRepository,
-            paymentRepository as unknown as PaymentRepository
+            paymentRepository as unknown as PaymentRepository,
+            mpTokenService as never
         )
     })
 
@@ -325,7 +343,7 @@ describe("Seguridad del flujo de turnos", () => {
             ).rejects.toBeInstanceOf(ValidationError)
 
             expect(slotRepository.releaseOne).not.toHaveBeenCalled()
-            expect(paymentGateway.refund).not.toHaveBeenCalled()
+            expect(paymentGateway.refundDetailed).not.toHaveBeenCalled()
         })
 
         it("el reembolso se pide después de liberar el turno", async () => {
@@ -345,14 +363,18 @@ describe("Seguridad del flujo de turnos", () => {
                 _id: new Types.ObjectId(),
                 amount: 1000,
             })
-            paymentGateway.refund.mockResolvedValue({ id: "refund-1" })
+            paymentGateway.refundDetailed.mockResolvedValue({
+                ok: true,
+                data: { id: "refund-1" },
+                unauthorized: false,
+            })
 
             await appointmentService.cancelByClient({
                 appointmentId: appointmentId.toString(),
                 verified: true,
             })
 
-            expect(paymentGateway.refund).toHaveBeenCalledWith("mp-1", "token", 500)
+            expect(paymentGateway.refundDetailed).toHaveBeenCalledWith("mp-1", "token", 500)
             expect(paymentRepository.markRefunded).toHaveBeenCalled()
         })
 
@@ -374,7 +396,11 @@ describe("Seguridad del flujo de turnos", () => {
                 _id: paymentDocId,
                 amount: 1000,
             })
-            paymentGateway.refund.mockResolvedValue(null)
+            paymentGateway.refundDetailed.mockResolvedValue({
+                ok: false,
+                unauthorized: false,
+                status: 500,
+            })
 
             await appointmentService.cancelByClient({
                 appointmentId: appointmentId.toString(),

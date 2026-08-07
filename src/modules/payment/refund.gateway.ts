@@ -16,6 +16,19 @@ export class MercadoPagoPaymentGateway implements RefundPort {
         accessToken: string,
         amount?: number
     ): Promise<unknown | null> {
+        const result = await this.refundDetailed(paymentId, accessToken, amount)
+        if (result.unauthorized || !result.ok) return null
+        return result.data
+    }
+
+    async refundDetailed(
+        paymentId: string,
+        accessToken: string,
+        amount?: number
+    ): Promise<
+        | { ok: true; data: unknown; unauthorized: false }
+        | { ok: false; data?: unknown; unauthorized: boolean; status: number }
+    > {
         try {
             const randomId = generateRandomId()
             const response = await fetch(
@@ -33,19 +46,42 @@ export class MercadoPagoPaymentGateway implements RefundPort {
 
             const data = await response.json()
             if (!response.ok) {
-                logger.error({ data }, "Error al procesar el reembolso")
-                return null
+                logger.error(
+                    { data, status: response.status },
+                    "Error al procesar el reembolso"
+                )
+                return {
+                    ok: false,
+                    data,
+                    unauthorized: response.status === 401,
+                    status: response.status,
+                }
             }
 
             logger.info("Devolución completa.")
-            return data
+            return { ok: true, data, unauthorized: false }
         } catch (error) {
             logger.error({ err: error }, "Error en refund")
-            return null
+            return { ok: false, unauthorized: false, status: 0 }
         }
     }
 
-    async getPayment(paymentId: string, accessToken: string): Promise<any | null> {
+    async getPayment(
+        paymentId: string,
+        accessToken: string
+    ): Promise<any | null> {
+        const result = await this.getPaymentDetailed(paymentId, accessToken)
+        if (result.unauthorized || !result.ok) return null
+        return result.data
+    }
+
+    async getPaymentDetailed(
+        paymentId: string,
+        accessToken: string
+    ): Promise<
+        | { ok: true; data: any; unauthorized: false }
+        | { ok: false; data?: unknown; unauthorized: boolean; status: number }
+    > {
         const response = await fetch(
             `https://api.mercadopago.com/v1/payments/${paymentId}`,
             {
@@ -56,23 +92,45 @@ export class MercadoPagoPaymentGateway implements RefundPort {
                 },
             }
         )
-        if (!response.ok) return null
-        return response.json()
+        if (!response.ok) {
+            return {
+                ok: false,
+                unauthorized: response.status === 401,
+                status: response.status,
+            }
+        }
+        return {
+            ok: true,
+            data: await response.json(),
+            unauthorized: false,
+        }
     }
 
     async createPreference(
         accessToken: string,
         body: Record<string, unknown>
-    ): Promise<{ init_point?: string }> {
-        const response = await fetch("https://api.mercadopago.com/checkout/preferences", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify(body),
-        })
-        return response.json()
+    ): Promise<{
+        init_point?: string
+        unauthorized?: boolean
+        status: number
+    }> {
+        const response = await fetch(
+            "https://api.mercadopago.com/checkout/preferences",
+            {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${accessToken}`,
+                },
+                body: JSON.stringify(body),
+            }
+        )
+        const data = await response.json().catch(() => ({}))
+        return {
+            ...data,
+            status: response.status,
+            unauthorized: response.status === 401,
+        }
     }
 
     async exchangeOAuthCode(code: string): Promise<{
@@ -104,6 +162,36 @@ export class MercadoPagoPaymentGateway implements RefundPort {
             access_token: data.access_token,
             refresh_token: data.refresh_token ?? "",
             user_id: data.user_id,
+            expires_in: data.expires_in ?? 0,
+        }
+    }
+
+    async refreshOAuthToken(refreshToken: string): Promise<{
+        access_token: string
+        refresh_token?: string
+        expires_in: number
+    } | null> {
+        const response = await fetch("https://api.mercadopago.com/oauth/token", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                client_secret: env.CLIENT_SECRET_MP,
+                client_id: env.CLIENT_ID_MP,
+                grant_type: "refresh_token",
+                refresh_token: refreshToken,
+            }),
+        })
+        const data = await response.json()
+        if (!response.ok || !data?.access_token) {
+            logger.error(
+                { status: response.status, data },
+                "Error al renovar token OAuth de Mercado Pago"
+            )
+            return null
+        }
+        return {
+            access_token: data.access_token,
+            refresh_token: data.refresh_token,
             expires_in: data.expires_in ?? 0,
         }
     }

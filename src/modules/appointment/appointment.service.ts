@@ -26,8 +26,10 @@ import {
 	MercadoPagoPaymentGateway,
 	RefundPort,
 } from "../payment/refund.gateway";
+import { MpTokenService } from "../payment/mp-token.service";
 import { calculateRefundAmount, RefundActor } from "../payment/refund-policy";
 import { PaymentRepository } from "../payment/payment.repository";
+import { CompanyDocument } from "../company/company.types";
 import { ServiceMapper } from "../service/service.mapper";
 import { ServiceRepository } from "../service/service.repository";
 import { ServiceDocument } from "../service/service.types";
@@ -60,7 +62,10 @@ import {
 } from "./booking-rules";
 
 type PaymentGateway = RefundPort &
-	Pick<MercadoPagoPaymentGateway, "getPayment">;
+	Pick<
+		MercadoPagoPaymentGateway,
+		"getPayment" | "getPaymentDetailed" | "refundDetailed"
+	>;
 
 type CreateAppointmentOptions = {
 	paymentId?: string;
@@ -80,7 +85,29 @@ export class AppointmentService {
 		private readonly paymentGateway: PaymentGateway,
 		private readonly slotRepository: SlotRepository,
 		private readonly paymentRepository: PaymentRepository,
+		private readonly mpTokenService: MpTokenService,
 	) {}
+
+	private async refundWithTokenRetry(
+		company: CompanyDocument,
+		paymentId: string,
+		amount: number,
+	): Promise<unknown | null> {
+		return this.mpTokenService.withValidAccessToken(
+			company,
+			async (accessToken) => {
+				const result = await this.paymentGateway.refundDetailed(
+					paymentId,
+					accessToken,
+					amount,
+				);
+				return {
+					unauthorized: result.unauthorized,
+					result: result.ok ? result.data : null,
+				};
+			},
+		);
+	}
 
 	async createAppointment(
 		companyId: string,
@@ -361,9 +388,18 @@ export class AppointmentService {
 			};
 		}
 
-		const paymentInfo = await this.paymentGateway.getPayment(
-			paymentId,
-			company.mp_access_token,
+		const paymentInfo = await this.mpTokenService.withValidAccessToken(
+			company,
+			async (accessToken) => {
+				const result = await this.paymentGateway.getPaymentDetailed(
+					paymentId,
+					accessToken,
+				);
+				return {
+					unauthorized: result.unauthorized,
+					result: result.ok ? result.data : null,
+				};
+			},
 		);
 
 		if (!paymentInfo || paymentInfo.status !== "approved") {
@@ -417,7 +453,7 @@ export class AppointmentService {
 			return this.refundUnavailableAfterPayment({
 				paymentId,
 				paymentDocId: existing._id,
-				accessToken: company.mp_access_token,
+				company,
 				totalPaidAmount: existing.amount,
 				dataUser,
 				companyName: company.name,
@@ -446,7 +482,7 @@ export class AppointmentService {
 			return this.refundUnavailableAfterPayment({
 				paymentId,
 				paymentDocId: paymentRecord.payment._id,
-				accessToken: company.mp_access_token,
+				company,
 				totalPaidAmount,
 				dataUser,
 				companyName: company.name,
@@ -508,7 +544,7 @@ export class AppointmentService {
 			return this.refundUnavailableAfterPayment({
 				paymentId,
 				paymentDocId: paymentRecord.payment._id,
-				accessToken: company.mp_access_token,
+				company,
 				totalPaidAmount,
 				dataUser,
 				companyName: company.name,
@@ -526,7 +562,7 @@ export class AppointmentService {
 	private async refundUnavailableAfterPayment(input: {
 		paymentId: string;
 		paymentDocId: Types.ObjectId;
-		accessToken: string;
+		company: CompanyDocument;
 		totalPaidAmount: number;
 		dataUser: AppointmentUserData;
 		companyName: string;
@@ -537,7 +573,7 @@ export class AppointmentService {
 		const {
 			paymentId,
 			paymentDocId,
-			accessToken,
+			company,
 			totalPaidAmount,
 			dataUser,
 			companyName,
@@ -560,9 +596,9 @@ export class AppointmentService {
 			totalPaidAmount,
 			"system_unavailable",
 		);
-		const refundResponse = await this.paymentGateway.refund(
+		const refundResponse = await this.refundWithTokenRetry(
+			company,
 			paymentId,
-			accessToken,
 			refundAmount,
 		);
 
@@ -650,7 +686,7 @@ export class AppointmentService {
 
 		const { serviceToSend } = await this.executeCancellation(
 			appointment,
-			company.mp_access_token,
+			company,
 			service,
 			"client",
 		);
@@ -708,7 +744,7 @@ export class AppointmentService {
 
 		const { serviceToSend } = await this.executeCancellation(
 			appointment,
-			company.mp_access_token,
+			company,
 			service,
 			"company",
 		);
@@ -1050,7 +1086,7 @@ export class AppointmentService {
 	 */
 	private async executeCancellation(
 		appointment: AppointmentDocument,
-		accessToken: string,
+		company: CompanyDocument,
 		service: ServiceDocument,
 		actor: "client" | "company",
 	): Promise<{
@@ -1077,7 +1113,7 @@ export class AppointmentService {
 
 		const refundAmount = await this.refundAfterCancellation(
 			appointment,
-			accessToken,
+			company,
 			actor,
 		);
 
@@ -1089,7 +1125,7 @@ export class AppointmentService {
 			AppointmentDocument,
 			"paymentId" | "paymentRef" | "totalPaidAmount" | "email"
 		>,
-		accessToken: string,
+		company: CompanyDocument,
 		actor: RefundActor,
 	): Promise<number | null> {
 		if (!appointment.paymentId || !appointment.totalPaidAmount) {
@@ -1102,9 +1138,9 @@ export class AppointmentService {
 		);
 		const payment = await this.resolvePayment(appointment);
 
-		const refundResponse = await this.paymentGateway.refund(
+		const refundResponse = await this.refundWithTokenRetry(
+			company,
 			String(appointment.paymentId),
-			accessToken,
 			amount,
 		);
 

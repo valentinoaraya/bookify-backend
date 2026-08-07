@@ -8,6 +8,7 @@ import { CompanyRepository } from "../company/company.repository"
 import { ServiceRepository } from "../service/service.repository"
 import { PlanType } from "../company/company.types"
 import { NotificationService } from "../notification/notification.service"
+import { MpTokenService } from "../payment/mp-token.service"
 import { SubscriptionRepository } from "./subscription.repository"
 import {
     SubscriptionDocument,
@@ -104,19 +105,12 @@ export class SubscriptionService {
         )
     }
 
-    private async disconnectMercadoPago(companyId: string) {
-        await this.companyRepository.updateById(companyId, {
-            $set: {
-                connectedWithMP: false,
-                mp_access_token: "",
-                mp_refresh_token: "",
-                token_expires_in: 0,
-                mp_user_id: "",
-                updatedAt: new Date(),
-            },
-        })
-        await this.serviceRepository.clearSignPricesByCompany(companyId)
-    }
+	private async disconnectMercadoPago(companyId: string) {
+		await this.companyRepository.updateById(companyId, {
+			$set: MpTokenService.buildClearFields(),
+		})
+		await this.serviceRepository.clearSignPricesByCompany(companyId)
+	}
 
     private async applyPlanRestrictions(companyId: string, newPlan: string) {
         const company = await this.companyRepository.findById(companyId)

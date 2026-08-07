@@ -12,6 +12,7 @@ import { SubscriptionService } from "../subscription/subscription.service";
 import { SubscriptionRepository } from "../subscription/subscription.repository";
 import { planAllowsIntegrations } from "../../utils/planRules";
 import { MercadoPagoPaymentGateway } from "./refund.gateway";
+import { MpTokenService } from "./mp-token.service";
 import { UserData } from "../../types";
 import {
 	assertBookable,
@@ -38,6 +39,7 @@ export class PaymentService {
 		private readonly paymentGateway: MercadoPagoPaymentGateway,
 		private readonly subscriptionService: SubscriptionService,
 		private readonly subscriptionRepository: SubscriptionRepository,
+		private readonly mpTokenService: MpTokenService,
 	) {}
 
 	setAppointmentPort(port: PaymentAppointmentPort): void {
@@ -48,9 +50,9 @@ export class PaymentService {
 		empresaId: string,
 		user: UserData,
 		input: {
-			serviceId: string
-			date: string
-			locationId?: string
+			serviceId: string;
+			date: string;
+			locationId?: string;
 		},
 		markPending: (
 			serviceId: string,
@@ -143,12 +145,21 @@ export class PaymentService {
 			statement_descriptor: "BOOKIFY TURNOS",
 		};
 
-		const data = await this.paymentGateway.createPreference(
-			empresa.mp_access_token,
-			body,
+		const data = await this.mpTokenService.withValidAccessToken(
+			empresa,
+			async (accessToken) => {
+				const preference = await this.paymentGateway.createPreference(
+					accessToken,
+					body,
+				);
+				return {
+					unauthorized: Boolean(preference.unauthorized),
+					result: preference,
+				};
+			},
 		);
 
-		if (!data.init_point) {
+		if (!data?.init_point) {
 			await removePending(input.serviceId, pendingId);
 			throw new Error(
 				"No se pudo reservar temporalmente el turno. Inténtelo de nuevo más tarde.",
@@ -173,13 +184,15 @@ export class PaymentService {
 			);
 		}
 
-		const updated = await this.companyRepository.updateById(state, {
-			mp_user_id: String(user_id),
-			mp_access_token: access_token,
-			mp_refresh_token: refresh_token,
-			token_expires_in: expires_in,
-			connectedWithMP: true,
-		});
+		const updated = await this.mpTokenService.persistTokens(
+			state,
+			{
+				access_token,
+				refresh_token,
+				expires_in,
+			},
+			{ mp_user_id: String(user_id) },
+		);
 
 		if (!updated) {
 			throw new NotFoundError("Empresa no encontrada.");
@@ -229,10 +242,7 @@ export class PaymentService {
 			type === "payment" &&
 			(action === "payment.created" || action === "payment.updated")
 		) {
-			logger.info(
-				{ action },
-				"Notificación de pago recibida.",
-			);
+			logger.info({ action }, "Notificación de pago recibida.");
 			if (!this.appointmentPort) {
 				throw new Error("PaymentAppointmentPort no configurado");
 			}
@@ -248,12 +258,7 @@ export class PaymentService {
 			});
 			if (!empresa) throw new NotFoundError("Empresa no encontrada.");
 
-			empresa.mp_access_token = "";
-			empresa.mp_refresh_token = "";
-			empresa.mp_user_id = "";
-			empresa.token_expires_in = 0;
-			empresa.connectedWithMP = false;
-			await empresa.save();
+			await this.mpTokenService.clearConnection(empresa._id);
 
 			logger.info(`Empresa ${empresa.name} desautorizada.`);
 			return { status: 200, payload: { data: "Received" } };

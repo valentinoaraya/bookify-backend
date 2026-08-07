@@ -46,6 +46,12 @@ describe("AppointmentService webhook idempotency", () => {
         paymentGateway = {
             refund: vi.fn().mockResolvedValue({ id: "refund-1" }),
             getPayment: vi.fn(),
+            refundDetailed: vi.fn().mockResolvedValue({
+                ok: true,
+                data: { id: "refund-1" },
+                unauthorized: false,
+            }),
+            getPaymentDetailed: vi.fn(),
         }
         companyRepository = {
             findOne: vi.fn().mockResolvedValue({
@@ -53,12 +59,30 @@ describe("AppointmentService webhook idempotency", () => {
                 mp_access_token: "tok",
                 name: "Co",
                 email: "c@c.com",
+                connectedWithMP: true,
             }),
             findById: vi.fn(),
         }
         notificationService = {
             sendConfirmAppointment: vi.fn(),
             sendRefundUnavailable: vi.fn(),
+        }
+
+        const mpTokenService = {
+            getValidAccessToken: vi.fn(async (c: { mp_access_token?: string }) =>
+                c.mp_access_token ?? null
+            ),
+            withValidAccessToken: vi.fn(
+                async (
+                    company: { mp_access_token?: string },
+                    execute: (token: string) => Promise<{ unauthorized: boolean; result: unknown }>
+                ) => {
+                    const outcome = await execute(company.mp_access_token || "")
+                    return outcome.result
+                }
+            ),
+            refreshCompanyToken: vi.fn(),
+            clearConnection: vi.fn(),
         }
 
         appointmentService = new AppointmentService(
@@ -89,17 +113,22 @@ describe("AppointmentService webhook idempotency", () => {
                 tryReserveByServiceDatetime: vi.fn(),
                 findAllByService: vi.fn().mockResolvedValue([]),
             } as unknown as SlotRepository,
-            paymentRepository as unknown as PaymentRepository
+            paymentRepository as unknown as PaymentRepository,
+            mpTokenService as never
         )
 
         createAppointmentSpy = vi
             .spyOn(appointmentService, "createAppointment")
             .mockResolvedValue({ companyId: companyId.toString() } as any)
 
-        paymentGateway.getPayment.mockResolvedValue({
-            status: "approved",
-            external_reference: externalReference,
-            transaction_details: { total_paid_amount: 500 },
+        paymentGateway.getPaymentDetailed.mockResolvedValue({
+            ok: true,
+            unauthorized: false,
+            data: {
+                status: "approved",
+                external_reference: externalReference,
+                transaction_details: { total_paid_amount: 500 },
+            },
         })
     })
 
@@ -124,7 +153,7 @@ describe("AppointmentService webhook idempotency", () => {
         expect(result.status).toBe(200)
         expect(result.body.data).toBe("Pago ya procesado.")
         expect(createAppointmentSpy).not.toHaveBeenCalled()
-        expect(paymentGateway.refund).not.toHaveBeenCalled()
+        expect(paymentGateway.refundDetailed).not.toHaveBeenCalled()
     })
 
     it("webhook nuevo crea Appointment una sola vez", async () => {
@@ -142,7 +171,7 @@ describe("AppointmentService webhook idempotency", () => {
 
         expect(result.status).toBe(200)
         expect(createAppointmentSpy).toHaveBeenCalledTimes(1)
-        expect(paymentGateway.refund).not.toHaveBeenCalled()
+        expect(paymentGateway.refundDetailed).not.toHaveBeenCalled()
     })
 
     it("payment.updated approved también confirma el turno", async () => {
@@ -178,7 +207,7 @@ describe("AppointmentService webhook idempotency", () => {
 
         expect(result.status).toBe(200)
         expect(result.body.data).toMatch(/Reembolso procesado/)
-        expect(paymentGateway.refund).toHaveBeenCalledWith("mp-pay-3", "tok", 500)
+        expect(paymentGateway.refundDetailed).toHaveBeenCalledWith("mp-pay-3", "tok", 500)
         expect(paymentRepository.markRefunded).toHaveBeenCalledWith(paymentDocId, 500)
         expect(notificationService.sendRefundUnavailable).toHaveBeenCalled()
     })
@@ -204,7 +233,7 @@ describe("AppointmentService webhook idempotency", () => {
         expect(result.status).toBe(200)
         expect(result.body.data).toMatch(/Reembolso procesado/)
         expect(createAppointmentSpy).not.toHaveBeenCalled()
-        expect(paymentGateway.refund).toHaveBeenCalledWith("mp-pay-4", "tok", 500)
+        expect(paymentGateway.refundDetailed).toHaveBeenCalledWith("mp-pay-4", "tok", 500)
     })
 
     it("si el turno ya se vinculó y falla un side-effect, no reembolsa", async () => {
@@ -228,6 +257,6 @@ describe("AppointmentService webhook idempotency", () => {
 
         expect(result.status).toBe(200)
         expect(result.body.data).toBe("Pago procesado y turno confirmado.")
-        expect(paymentGateway.refund).not.toHaveBeenCalled()
+        expect(paymentGateway.refundDetailed).not.toHaveBeenCalled()
     })
 })
