@@ -25,3 +25,7 @@ process.env.BACK_URL_AEDES = process.env.BACK_URL_AEDES || "http://localhost:517
 process.env.REDIS_HOST = process.env.REDIS_HOST || "localhost"
 process.env.REDIS_PORT = process.env.REDIS_PORT || "6379"
 process.env.PORT = process.env.PORT || "5000"
+process.env.AEDESFLOW_WEBHOOK_URL =
+    process.env.AEDESFLOW_WEBHOOK_URL ||
+    "https://sauaavezfviumloirvrh.supabase.co/functions/v1/saas-webhook"
+process.env.SAAS_WEBHOOK_SECRET = process.env.SAAS_WEBHOOK_SECRET || ""

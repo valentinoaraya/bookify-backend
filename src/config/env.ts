@@ -35,6 +35,27 @@ const envSchema = z
 		MP_WEBHOOK_SECRET: z.string().optional().default(""),
 		/** Secret de webhooks de la app Aedes / suscripciones Bookify. */
 		MP_WEBHOOK_SECRET_AEDES: z.string().optional().default(""),
+		/**
+		 * Webhook de AedesFlow (gestión interna). Sin secret, el cliente no-op.
+		 * URL por defecto del instruccional connect-aedesflow.md.
+		 */
+		AEDESFLOW_WEBHOOK_URL: z
+			.string()
+			.default(
+				"https://sauaavezfviumloirvrh.supabase.co/functions/v1/saas-webhook",
+			),
+		SAAS_WEBHOOK_SECRET: z.string().optional().default(""),
+		/**
+		 * Pesos por 1 USD para convertir precios ARS → amount_usd / mrr_usd.
+		 * Si no se setea, amount_usd queda en 0 (permitido por el contrato).
+		 */
+		AEDESFLOW_USD_ARS_RATE: z.preprocess(
+			(value) =>
+				value === "" || value === undefined || value === null
+					? undefined
+					: value,
+			z.coerce.number().positive().optional(),
+		),
 		REDIS_HOST: z.string().default("localhost"),
 		REDIS_PORT: z.coerce.number().default(6379),
 	})

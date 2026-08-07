@@ -270,6 +270,15 @@ export class PaymentService {
 			);
 		}
 
+		if (type === "subscription_authorized_payment") {
+			if (!data?.id) {
+				return { status: 200, payload: { data: "Received" } };
+			}
+			return this.subscriptionService.handleAuthorizedPaymentWebhook(
+				String(data.id),
+			);
+		}
+
 		return {
 			status: 200,
 			payload: { data: "Evento recibido pero no procesado." },

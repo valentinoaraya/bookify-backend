@@ -15,6 +15,11 @@ import { SlotRepository } from "../slot/slot.repository"
 import { SubscriptionRepository } from "../subscription/subscription.repository"
 import { formatDateTime } from "../../shared/utils/datetime"
 import { PLAN_RULES, isPaidPlan } from "../../utils/planRules"
+import {
+    notifyAedesFlow,
+    buildCustomerUpsertedPayload,
+    buildSubscriptionUpsertedPayload,
+} from "../../infrastructure/aedesflow"
 import { CompanyRepository } from "./company.repository"
 import { CompanyMapper } from "./company.mapper"
 import {
@@ -94,6 +99,13 @@ export class CompanyService {
                 newCompany.refresh_token = tokens.refresh_token
                 newCompany.subscriptionId = subscription._id
                 await newCompany.save()
+
+                notifyAedesFlow(buildCustomerUpsertedPayload(newCompany))
+                notifyAedesFlow(
+                    buildSubscriptionUpsertedPayload(newCompany, subscription, {
+                        status: "active",
+                    })
+                )
 
                 return CompanyMapper.toRegisterResponse({
                     id: newCompany.id,
@@ -388,6 +400,10 @@ export class CompanyService {
 
         if (!updatedCompany) {
             throw new NotFoundError("No se encontró la empresa")
+        }
+
+        if (data.name !== undefined || data.email !== undefined) {
+            notifyAedesFlow(buildCustomerUpsertedPayload(updatedCompany))
         }
 
         return CompanyMapper.toUpdateResponse(updatedCompany)
